@@ -1,0 +1,117 @@
+----------------------------------------------------------------------------------------
+-- Author: 			David Kornfeld and Bobby Abrahamson
+-- Title:			ControlUnit
+-- Description:  	This file implements the Control Unit for the AVR_2019 CPU designed by 
+--						Bobby Abrahamson and David Kornfeld. It reads in instructions from the
+--						program data bus and latches them into the instruction register. From
+--						there, the IR bits are used (along with a finite state machine) to
+--						generate all the control signals for the other modules in the CPU.
+--						Additionally, offsets and immediate values are passed to the modules
+--						that read them from the instruction register. 
+--			
+--
+--	Parameters: (from header)
+--		NUM_BITS				(integer range 2 to Infinity) - The number of bits used to 
+--																			represent the numbers in the 
+--																			Data bus.
+--		INSTR_SIZE			(integer range 2 to Inifinty)	- The number of bits in the IR
+--		DATA_OFFSET_SIZE 	(integer range 2 to NUM_BITS) - The size of offsets allowed on DataDB
+--		PROG_OFFSET_SIZE 	(integer range 2 to INSTR_SIZE) - The size of offsets allowed on ProgDB
+--
+-- Inputs:
+--		SREG      			(std_logic_vector(NUM_FLAGS-1 downto 0))	- Status Register
+--		ProgDB				(std_logic_vector(INSTR_SIZE-1 downto 0))	- Program Data Bus
+--		
+-- Outputs: (Control Signals)
+--		DataRd			(std_logic)												- Read data
+--		DataWr			(std_logic)												- Write data
+--		IOSel				(std_logic)												- Read/Write from IO space
+--		RegInSel			(std_logic)												- Controls input to RegArray
+--		OPBInSel			(std_logic)												- Controls Mux into ALU B Op
+--		DBSel				(std_logic_vector(1 downto 0))					- Controls output to Data DB
+--
+--		RegArray Control Signals: ##########################################################
+--		RegASel			(std_logic_vector(Log2(NUM_REG)-1 downto 0))	- Register A Select lines
+--		RegBSel			(std_logic_vector(Log2(NUM_REG)-1 downto 0))	- Register B Select lines
+--		RegWrSel			(std_logic_vector(Log2(NUM_REG)-1 downto 0))	- Reg Enable decoder lines
+--		RegWr				(std_logic)												- Reg (write) Enable
+--		AddrDataIn		(std_logic_vector(2*NUM_BITS-1 downto 0))		- Input data for address
+--																							registers
+--		AddrRegSel		(std_logic_vector(Log2(NUM_ADDR_REG)-1) downto 0)) - Address register 
+--																								output select
+--		AddrRegWrSel	(std_logic_vector(Log2(NUM_ADDR_REG)-1) downto 0)) - Address register 
+--																								enable decoder lines
+--								00 -> X
+--								01 -> Y
+--								10 -> Z
+--								11 -> SP
+--		AddrRegWr		(std_logic)												- Address Reg (write) En
+--
+--		ALU Control Signals: ###############################################################
+--		N_AddMask		(std_logic) 								- Active low mask for Operand A
+--		FControl			(std_logic_vector(3 downto 0))		- F block control lines
+--		Subtract			(std_logic)									- Command subtraction from adder
+--		CarryInControl	(std_logic_vector(1 downto 0))		- Mux lines for carry in to adder
+--		SRControl		(std_logic_vector(5 downto 0))		- Shifter/Rotator Control lines
+--		ALUResultSel	(std_logic)									- Select between adder and SR
+--		FlagMask			(std_logic_vector(NUM_FLAGS-1 downto 0))	- Mask for updating StatReg
+--
+--		Program Memory Access Unit Control Signals: ########################################
+--		PCUpdateEn		(std_logic) 								- Enable PC to update
+--		N_PCLoad			(std_logic_vector(3 downto 0))		- Active low load control for PC
+--		PCControl		(std_logic_vector(2 downto 0))		- Mux input to adder control
+--		HiLoSel			(std_logic)									- Selects if loading high or low
+--																				part of PC
+--		Data Memory Access Unit Control Signals: ###########################################
+--		N_Inc				(std_logic) 								- Active low increment select
+--		N_OffsetMask	(std_logic) 								- Active low mask for offset inp.
+--		PrePostSel		(std_logic) 								- Select between pre-post inc
+--																				part of PC
+--
+-- Revision History:
+-- 	01/24/19	David	Kornfeld		Initial Revision
+-----------------------------------------------------------------------------------------
+library  ieee;
+-- Library instantiations
+use	work.AVR_2019_constants.all;
+-----------------------------------------------------------------------------------------
+entity ControlUnit is
+	generic	(
+		NUM_BITS				:	integer 	:= NUM_BITS,
+		INSTR_SIZE			:	integer	:= INSTR_SIZE,
+		DATA_OFFSET_SIZE	:	integer	:= DATA_OFFSET_SIZE,
+		PROG_OFFSET_SIZE	:	integer	:= PROG_OFFSET_SIZE
+	);
+	port 		(
+		SREG      		:	in		std_logic_vector(NUM_FLAGS-1 downto 0);
+		ProgDB			:	in		std_logic_vector(INSTR_SIZE-1 downto 0);
+		DataRd			:	out	std_logic;
+		DataWr			:	out	std_logic;
+		IOSel				:	out	std_logic;
+		RegInSel			:	out	std_logic;
+		OPBInSel			:	out	std_logic;
+		DBSel				:	out	std_logic_vector(1 downto 0);
+		RegASel			:	out	std_logic_vector(4 downto 0);
+		RegBSel			:	out	std_logic_vector(4 downto 0);
+		RegWrSel			:	out	std_logic_vector(4 downto 0);
+		RegWr				:	out	std_logic;
+		AddrDataIn		:	out	std_logic_vector(2*NUM_BITS-1 downto 0);
+		AddrRegSel		:	out	std_logic_vector(1 downto 0);
+		AddrRegWrSel	:	out	std_logic_vector(1 downto 0);
+		N_AddMask		:	out	std_logic;
+		FControl			:	out	std_logic_vector(3 downto 0);
+		Subtract			:	out	std_logic;
+		CarryInControl	:	out	std_logic_vector(1 downto 0);
+		SRControl		:	out	std_logic_vector(5 downto 0);
+		ALUResultSel	:	out	std_logic;
+		FlagMask			:	out	std_logic_vector(NUM_FLAGS-1 downto 0);
+		PCUpdateEn		:	out	std_logic;
+		N_PCLoad			:	out	std_logic_vector(3 downto 0);
+		PCControl		:	out	std_logic_vector(2 downto 0);
+		HiLoSel			:	out	std_logic;
+		N_Inc				:	out	std_logic;
+		N_OffsetMask	:	out	std_logic;
+		PrePostSel		:	out	std_logic
+	);
+end ControlUnit;
+-----------------------------------------------------------------------------------------

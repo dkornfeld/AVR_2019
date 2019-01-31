@@ -1,0 +1,13 @@
+C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Compiling package opcodes
+
+} {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Compiling package AVR_2019_constants
+
+} {} {}}

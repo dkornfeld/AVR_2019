@@ -14,22 +14,19 @@
 --																numbers. 
 --
 -- Inputs:
---		clock				(std_logic)												- Clock input
 --		OperandA      	(std_logic_vector(NUM_BITS-1 downto 0))		- Input A to ALU
 --		OperandB      	(std_logic_vector(NUM_BITS-1 downto 0))		- Input A to ALU
---		Control Signals: ##################################################################
---		N_AddMask		(std_logic) 								- Active low mask for Operand A
---		FControl			(std_logic_vector(3 downto 0))		- F block control lines
---		Subtract			(std_logic)									- Command subtraction from adder
---		CarryInControl	(std_logic_vector(1 downto 0))		- Mux lines for carry in to adder
---		SRControl		(std_logic_vector(5 downto 0))		- Shifter/Rotator Control lines
---		ALUResultSel	(std_logic)									- Select between adder and SR
 --		CarryFlag		(std_logic)									- Carry flag from the SREG
 --		TFlag				(std_logic)									- T Flag from the SREG
---		TBitSelect		(std_logic_vector 2 downto 0))		- Select which register bit
+--		Control Signals: ##################################################################
+--		N_AddMask		(std_logic) 								- Active low mask for Operand A
+--		FSRControl		(std_logic_vector(3 downto 0))		- F block and shifter control lines
+--		Subtract			(std_logic)									- Command subtraction from adder
+--		CarryInControl	(std_logic_vector(1 downto 0))		- Mux lines for carry in to adder
+--		ALUResultSel	(std_logic)									- Select between adder and SR
+--		TBitSelect		(std_logic_vector(2 downto 0))		- Select which register bit
 --																				for loading/storing T
 --		TLoad				(std_logic)									- Indicate if loading from T flag
---		FlagMask			(std_logic_vector(NUM_FLAGS-1 downto 0))	- Mask for updating StatReg
 --		
 -- Outputs:
 --		Result      	(std_logic_vector(NUM_BITS-1 downto 0))		- Output from ALU
@@ -38,6 +35,9 @@
 --
 -- Revision History:
 -- 	01/24/19	David	Kornfeld		Initial Revision
+--		01/31/19	David Kornfeld		Implemented first code from block diagram
+--		01/31/19	David Kornfeld		Implemented SWAP
+--		01/31/19	David Kornfeld		cleaned up ins and outs list and documentation
 -----------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -49,17 +49,16 @@ entity ALU is
 		NUM_BITS			:	integer := NUM_BITS -- Number of bits to use (from header)
 	);
 	port 		(
-		clock				:	in		std_logic;
 		OperandA      	:	in		std_logic_vector(NUM_BITS-1 downto 0);
 		OperandB      	:	in		std_logic_vector(NUM_BITS-1 downto 0);
+		CarryFlag		:	in		std_logic;
+		TFlag				:	in		std_logic;
 		N_AddMask		:	in		std_logic;
 		FSRControl		:	in		std_logic_vector(3 downto 0);
 		Subtract			:	in		std_logic;
 		CarryInControl	:	in		std_logic_vector(1 downto 0);
 		ALUResultSel	:	in		std_logic;
 		FlagMask			:	in		std_logic_vector(NUM_FLAGS-1 downto 0);
-		CarryFlag		:	in		std_logic;
-		TFlag				:	in		std_logic;
 		TBitSelect		:	in		std_logic_vector(2 downto 0);
 		TLoad				:	in		std_logic;
 		Result      	:	out	std_logic_vector(NUM_BITS-1 downto 0);
@@ -99,6 +98,8 @@ begin
 	-- Bit-wise logical operatins depending on positions of FSRControl. Fout receives:
 	--		0000 -> Zero Vector
 	--		0001 -> A nor B
+	--		1100 -> A
+	--		1010 -> B
 	--		0011 -> not A
 	--		0101 -> not B
 	--		0110 -> A xor B
@@ -145,18 +146,27 @@ begin
 	-- Shifter/Rotator ##################################################################
 	
 	-- All left shifts done with adder, so only need to worry about right shifts. Only
-	-- uppermost bit is the one with any muxing. All others always just move down.
+	-- uppermost bit is the one with any muxing. All others always just move down. This
+	-- of course assumes we are not swapping, which is just a special case of shifting.
 	process(FSRControl, OperandA, CarryFlag)
 	begin
+		-- First, assume not swapping
+		SRout(NUM_BITS-2 downto 0) <= OperandA(NUM_BITS-1 downto 1);
+		
 		case FSRControl is
-			when "0000" 	=> SRout(NUM_BITS-1) 	<= '0';
-			when "0001" 	=> SRout(NUM_BITS-1) 	<= OperandA(NUM_BITS-1);
-			when "0010" 	=> SRout(NUM_BITS-1) 	<= CarryFlag;
-			when others		=> SRout(NUM_BITS-1) 	<= '1';
+			when "0110" 	=> SRout(NUM_BITS-1) 	<= '0';						-- LSR
+			when "0101" 	=> SRout(NUM_BITS-1) 	<= OperandA(NUM_BITS-1);-- ASR
+			when "0111" 	=> SRout(NUM_BITS-1) 	<= CarryFlag;				-- ROR
+			when "0010"		=>	SRout(NUM_BITS-1)		<= OperandA((NUM_BITS/2)-1); -- SWAP
+			when others		=> SRout(NUM_BITS-1) 	<= '1';						-- Others
 		end case;
+		
+		-- But if we are swapping
+		if std_match(FSRControl, "0010") then
+			SRout(NUM_BITS-2 downto NUM_BITS/2) <= OperandA((NUM_BITS/2)-2 downto 0);
+			SRout((NUM_BITS/2) - 1 downto 0) <= OperandA(NUM_BITS-1 downto NUM_BITS/2);
+		end if;
 	end process;
-	
-	SRout(NUM_BITS-2 downto 0) <= OperandA(NUM_BITS-1 downto 1);
 	
 	-- Output selection and loading from T flag #########################################
 	

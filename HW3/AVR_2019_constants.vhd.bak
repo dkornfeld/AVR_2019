@@ -8,7 +8,6 @@
 --
 -- Revision History:
 --		01/24/19	David Kornfeld		Initial Revision
---		01/31/19	David Kornfeld		Added constants for ControlUnit FSM
 
 package AVR_2019_constants is
 	-- General Constants
@@ -31,7 +30,5 @@ package AVR_2019_constants is
 	
 	-- ControlUnit Constants
 	constant INSTR_SIZE		:	integer	:=	16;	-- Size of instructions
-	constant MAX_INSTR_CLKS	:	integer	:= 2;		-- The maximum number of clocks
-																-- for an instruction
 	
 end package;

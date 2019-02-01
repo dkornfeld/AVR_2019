@@ -1,14 +1,15 @@
-C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd {0 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
+C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package STANDARD
 -- Loading package TEXTIO
 -- Loading package std_logic_1164
 -- Loading package NUMERIC_STD
 -- Loading package AVR_2019_constants
+-- Loading package opcodes
 -- Compiling entity ControlUnit
-** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(122): near "2": expecting ';' or ')'
+-- Compiling architecture data_flow of ControlUnit
 
-} {9.0 10.0} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
+} {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package STANDARD
 -- Loading package TEXTIO

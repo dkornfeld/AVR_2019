@@ -1,0 +1,303 @@
+-- Title: 	Test Bench for ALU
+-- Author:	David Kornfeld and Bobby Abrahamson
+--
+-- TODO
+--
+--
+-- Revision History:
+--		01/31/19	David Kornfeld		Initial Revision
+----------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.AVR_2019_constants.all;
+use work.opcodes.all
+----------------------------------------------------------------------------
+entity SD_tb is
+end SD_tb;
+----------------------------------------------------------------------------
+architecture TB_ARCHITECTURE of SD_tb is
+
+	-- Useful types for test vector #########################################
+	type tuple is array (0 to 1) of integer;
+	type tuple_array is array (natural range <>) of tuple;
+
+	-- Constants ############################################################
+	
+	-- The number of total tests to be run
+	constant TOT_NUM_TESTS	:	integer	:= 50;
+	
+	-- The number of edge cases we will manually input
+	constant NUM_EDGE_CASES	:	integer 	:= 10;
+	
+	-- Test Vectors for edge cases:
+	constant	EDGE_CASES	:	tuple_array(1 to NUM_EDGE_CASES) :=	(
+		(2**NUM_BITS-1, 2**NUM_BITS-1),
+		(2**NUM_BITS-1, 1),
+		(1, 2**NUM_BITS-1),
+		(1, 1),
+		(7, 1),
+		(1, 7),
+		(13, 1),
+		(1, 13),
+		(2**NUM_BITS-1, 13),
+		(13, 2**NUM_BITS-1)
+	);
+	
+	-- Constant for randomness
+	constant RAND_RANGE		: 	real 		:= real(2**NUM_BITS - 1);
+	
+	-- Timing Constants -----------------------------------------------------
+	
+	-- Clock period
+	constant CLK_PERIOD_INT	:	integer	:= 20; -- ns
+	constant CLK_PERIOD		:	time		:= CLK_PERIOD_INT * (1 ns);
+	
+	-- Length of a digit cycle
+	constant DIGIT_PERIOD	:	time	:= (2**MUX_PWR) * CLK_PERIOD;
+	
+	-- Length of a full cycle
+	constant CYCLE_PERIOD	:	time	:= DIGIT_PERIOD * 3 * NUM_NIBBLES;
+
+	-- Component declaration of the tested unit #############################	
+	component SerialDivider  is
+		port 		(
+			nReset      :  in   	std_logic;	-- Active low reset
+			nCalculate  :  in   	std_logic;	-- Active low calculate command
+			DivisorSel  :  in   	std_logic;	-- Select between inputting 
+														-- divisor (1) or dividend(0).
+														-- Also selects between showing
+														-- Quotient or remainder.
+			KeypadRdy   :  in   	std_logic;	-- Active high keypad ready signal
+			-- Keypad input
+			Keypad      :  in   	std_logic_vector(BIT_TO_NIBBLE-1 downto 0);
+			-- Single muxed hex digit output
+			HexDigit    :  out  	std_logic_vector(BIT_TO_NIBBLE-1 downto 0);
+			DecoderEn   :  out  	std_logic;	-- Decoder enable signal (tied high)
+			-- Currently muxed digit identifier (one-hot)
+			DecoderBit  :  out  	std_logic_vector(3*NUM_NIBBLES-1 downto 0);
+			CLK      	:	in		std_logic	-- System clock
+		);
+	end  component;
+	
+
+	-- Intermediate Signals #################################################
+	
+   -- Stimulus signals - signals mapped to the tested entity ports
+	signal nReset      		:	std_logic;
+	signal nCalculate  		: 	std_logic;
+	signal DivisorSel  		: 	std_logic;
+	signal KeypadRdy   		: 	std_logic;
+	signal Keypad      		: 	std_logic_vector(BIT_TO_NIBBLE-1 downto 0);
+	
+	-- Output signals - signals mapped to the tested entity ports
+	signal HexDigit    		: 	std_logic_vector(BIT_TO_NIBBLE-1 downto 0);
+	signal DecoderEn   		: 	std_logic;
+	signal DecoderBit  		: 	std_logic_vector(3*NUM_NIBBLES-1 downto 0);
+	
+	-- System clock
+	signal CLK      			:	std_logic;
+	
+   -- Signal used to stop clock signal generators
+   signal END_SIM		:	BOOLEAN := FALSE;
+
+begin -- ###################################################################
+	-- Unit Under Test port map
+	UUT : SerialDivider
+		port map(
+			nReset						=> nReset,
+			nCalculate					=> nCalculate,
+			DivisorSel					=> DivisorSel,
+			KeypadRdy					=> KeypadRdy,
+			Keypad						=> Keypad,
+			HexDigit						=> HexDigit,
+			DecoderEn					=> DecoderEn,
+			DecoderBit					=> DecoderBit,
+			CLK							=> CLK
+		);
+
+   -- now generate the stimulus and test the design
+	process
+	
+		-- some useful variables
+		
+		-- Integer forms of the test objects
+		variable DivisorInt	:	integer;
+		variable DividendInt	:	integer;
+		variable QuotientInt	:	integer;
+		
+		-- The test objects
+		variable Divisor  : 	std_logic_vector(NUM_BITS-1 downto 0);
+		variable	Dividend	:	std_logic_vector(NUM_BITS-1 downto 0);
+		variable	Quotient	:	std_logic_vector(NUM_BITS-1 downto 0);
+		
+		-- For keeping track of the CurDigit position
+		variable DigitTracker	:	std_logic_vector(3*NUM_NIBBLES - 1 downto 0);
+		
+		-- Variables for RNG
+		variable seed1, seed2	:	positive;	-- Seeds for RNG
+		variable rand				: 	real;   		-- random from [0, 1]
+		
+   begin  -- of stimulus process
+
+		-- Setup the system
+		DivisorSel	 	<= '0';					-- Doesn't matter
+		KeypadRdy   	<= '0';					-- Doesn't matter
+		Keypad			<= (others => '0');	-- Doesn't matter
+		nCalculate 	<= '1';						-- Doesn't matter
+		nReset		<= '0';						-- Hold in reset
+
+		-- run for a few clocks
+		wait for 100 ns;
+		
+		-- Then release the reset
+		nReset <= '1';
+		
+		-- check that we are ready to start
+		assert (DecoderBit = std_logic_vector(to_unsigned(1, 3*NUM_NIBBLES)))
+			report  "Initial Condition Test Failure"
+			severity  ERROR;
+			
+		for i in 1 to TOT_NUM_TESTS loop
+			
+			if i <= NUM_EDGE_CASES then -- If we have hand-picked tests left
+				-- Pull from the test vectors
+				DividendInt	:= EDGE_CASES(i)(0);
+				DivisorInt	:= EDGE_CASES(i)(1);
+			else
+				-- Otherwise, generate random numbers.
+				uniform(seed1, seed2, rand);
+				DivisorInt	:= integer(rand*RAND_RANGE);
+				uniform(seed1, seed2, rand);
+				DividendInt	:= integer(rand*RAND_RANGE);
+			end if;
+			
+			QuotientInt	:= integer(DividendInt/DivisorInt);
+			
+			-- Test values
+			Divisor 	:= std_logic_vector(to_unsigned(DivisorInt, NUM_BITS));
+			Dividend := std_logic_vector(to_unsigned(DividendInt, NUM_BITS));
+			Quotient := std_logic_vector(to_unsigned(QuotientInt, NUM_BITS));
+			
+			-- Set the digit tracker at the Dividend input position
+			DigitTracker := std_logic_vector(to_unsigned(1, 3*NUM_NIBBLES));
+		
+			-- Input the Dividend
+			for j in 0 to NUM_NIBBLES-1 loop
+				Keypad <= Dividend((NUM_BITS-1-(j*BIT_TO_NIBBLE)) downto 
+											NUM_BITS-((j+1)*BIT_TO_NIBBLE));
+				KeypadRdy <= '1';
+				wait for (DIGIT_PERIOD - CLK_PERIOD);
+				KeypadRdy <= '0';
+				-- check that the digit went in
+				assert (std_match(DecoderBit, DigitTracker))
+					report  "Dividend input failure. CurDigit wrong."
+					severity  ERROR;
+				assert (std_match(HexDigit, Dividend((NUM_BITS-1-(j*BIT_TO_NIBBLE)) 
+													downto NUM_BITS-((j+1)*BIT_TO_NIBBLE))))
+					report  "Dividend input failure. Loaded digit wrong."
+					severity  ERROR;
+				wait for CYCLE_PERIOD - DIGIT_PERIOD + CLK_PERIOD;
+			end loop;
+			
+			-- Switch to Divisor
+			wait for (((NUM_NIBBLES) * DIGIT_PERIOD)/2);
+			DivisorSel <= '1';
+			wait for (((NUM_NIBBLES) * DIGIT_PERIOD)/2);
+			
+			-- Set the digit tracker at the Divisor input position
+			DigitTracker := std_logic_vector(to_unsigned(2**(NUM_NIBBLES), 3*NUM_NIBBLES));
+			
+			-- Input the Divisor
+			for j in 0 to NUM_NIBBLES-1 loop
+				Keypad <= Divisor((NUM_BITS-1-(j*BIT_TO_NIBBLE)) downto 
+											NUM_BITS-((j+1)*BIT_TO_NIBBLE));
+				KeypadRdy <= '1';
+				wait for (DIGIT_PERIOD - CLK_PERIOD);
+				KeypadRdy <= '0';
+				-- check that the digit went in
+				assert (std_match(DecoderBit, DigitTracker))
+					report  "Divisor input failure. CurDigit wrong."
+					severity  ERROR;
+				assert (std_match(HexDigit, Divisor((NUM_BITS-1-(j*BIT_TO_NIBBLE)) 
+													downto NUM_BITS-((j+1)*BIT_TO_NIBBLE))))
+					report  "Divisor input failure. Loaded digit wrong."
+					severity  ERROR;
+				wait for CYCLE_PERIOD - DIGIT_PERIOD + CLK_PERIOD;
+			end loop;
+				
+			wait until DecoderBit = ('1' & std_logic_vector(to_unsigned(0, 3*NUM_NIBBLES-1)));
+			wait for DIGIT_PERIOD - 4 * CLK_PERIOD; -- Need to allow synchronization of input
+			
+			-- Run the calculation
+			nCalculate <= '0';
+			wait for 20000 ns; -- Long pulse on nCalculate to test behavior
+			nCalculate <= '1';
+			
+			-- Wait for the results and check them (synch up with clock)
+			wait until DecoderBit = std_logic_vector(to_unsigned(0, NUM_NIBBLES-1)) & '1' & 
+														std_logic_vector(to_unsigned(0, 2*NUM_NIBBLES));
+			wait for CLK_PERIOD;
+			
+			-- Set the digit tracker at the Quotient position
+			DigitTracker := std_logic_vector(to_unsigned(0, NUM_NIBBLES-1)) & '1' & 
+														std_logic_vector(to_unsigned(0, 2*NUM_NIBBLES));
+			
+			for j in NUM_NIBBLES-1 downto 0 loop
+				assert (std_match(DecoderBit, DigitTracker))
+					report  "Quotient digit failure. CurDigit wrong."
+					severity  ERROR;
+				assert (std_match(HexDigit, Quotient((NUM_BITS-1-(j*BIT_TO_NIBBLE)) 
+													downto NUM_BITS-((j+1)*BIT_TO_NIBBLE))))
+					report  "Quotient digit failure. HexDigit wrong."
+					severity  ERROR;
+					
+				-- Update the digit tracker
+				DigitTracker := DigitTracker(3*NUM_NIBBLES-2 downto 0) & '0';
+				if DigitTracker = std_logic_vector(to_unsigned(0, 3*NUM_NIBBLES)) then
+					DigitTracker := std_logic_vector(to_unsigned(1, 3*NUM_NIBBLES));
+				end if;
+				
+				wait for DIGIT_PERIOD;
+			end loop;
+
+			-- Switch back to inputting dividend
+			DivisorSel <= '0';
+			
+			-- Rotate back to beginning to try another division
+			wait until DecoderBit = std_logic_vector(to_unsigned(1, 3*NUM_NIBBLES));
+			wait for CLK_PERIOD/2; -- Need to resynch with clock
+		end loop;
+			
+      END_SIM <= TRUE;        -- end of stimulus events
+		wait;                   -- wait for simulation to end
+	end process; -- end of stimulus process
+
+   CLOCK_CLK : process
+   begin
+		-- this process generates a clock with a CLK_PERIOD period and 50% 
+		-- duty cycle. stop the clock when end of simulation is reached
+      if END_SIM = FALSE then
+          CLK <= '0';
+          wait for (CLK_PERIOD/2);
+      else
+          wait;
+      end if;
+
+      if END_SIM = FALSE then
+          CLK <= '1';
+          wait for (CLK_PERIOD/2);
+      else
+          wait;
+      end if;
+	end process;
+
+end TB_ARCHITECTURE;
+
+configuration TESTBENCH_FOR_SD_tb of SD_tb is
+    for TB_ARCHITECTURE
+        for UUT : SerialDivider
+            use entity work.SerialDivider(data_flow);
+        end for;
+    end for;
+end TESTBENCH_FOR_SD_tb;

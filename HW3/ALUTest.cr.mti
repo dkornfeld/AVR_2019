@@ -1,26 +1,21 @@
-C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd {0 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
-Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
--- Loading package STANDARD
--- Loading package TEXTIO
--- Loading package std_logic_1164
--- Loading package NUMERIC_STD
--- Loading package AVR_2019_constants
--- Loading package opcodes
--- Compiling entity ControlUnit
--- Compiling architecture data_flow of ControlUnit
-** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(166): near "process": expecting IF
-** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(169): Illegal sequential statement.
-** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(180): Illegal target for signal assignment.
-** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(180): (vcom-1136) Unknown identifier "TSCBitSelect".
-
-** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(560): near "architecture": expecting PROCESS
-
-} {11.0 15.0 16.0 17.0} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
+C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package STANDARD
 -- Loading package TEXTIO
 -- Loading package std_logic_1164
 -- Compiling package opcodes
+
+} {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package std_logic_arith
+-- Loading package STD_LOGIC_UNSIGNED
+-- Loading package AVR_2019_constants
+-- Compiling entity ALU
+-- Compiling architecture data_flow of ALU
 
 } {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd {0 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012

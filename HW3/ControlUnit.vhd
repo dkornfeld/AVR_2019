@@ -283,7 +283,8 @@ begin
 			SettingClearing<= '1'; 		-- Change a bit
 			BitSetClear 	<= '0';		-- to 0
          -- Registers (TODO)
-         SFlag           <= '1';  	-- Directly write to SREG
+         SFlag          <= '1';  	-- Directly write to SREG
+			TSCBitSelect	<= IR(6 downto 4); -- Flag select
 	  	end if;
 		
 		if std_match(IR, OpBLD) then
@@ -310,6 +311,7 @@ begin
 			BitSetClear 	<= '1';		-- to 1
 			-- Registers (TODO)
 			SFlag				<= '1';		-- Directly write to SREG
+			TSCBitSelect	<= IR(6 downto 4); -- Flag select
 		end if;
 		
 		if std_match(IR, OpBST) then

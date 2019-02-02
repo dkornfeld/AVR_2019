@@ -26,7 +26,7 @@ architecture TB_ARCHITECTURE of ALU_tb is
 														1 + 						 -- C Flag
 														1 + 						 -- T Flag
 														NUM_BITS + 				 -- Result
-														NUM_FLAGS);				 -- Flags
+														NUM_FLAGS-1);			 -- Flags
 	type test_tuple is array (natural range <>) of 
 										std_logic_vector(test_tuple_length-1 downto 0);
 
@@ -34,9 +34,45 @@ architecture TB_ARCHITECTURE of ALU_tb is
 	
 	-- Test Vectors
 	-- (Instruction, A, B, CarryFlagIn, TFlagIn, Result, ExpectedNewFlags)
-	constant	TEST_VECTORS	:	test_tuple(1 to 2) :=	(
-		"1111111111111111" & "11111111" & "11111111" & "00" & "11111111" & "00000000",
-		"1111111111111111" & "11111111" & "11111111" & "00" & "11111111" & "00000000"
+	constant	TEST_VECTORS	:	test_tuple(1 to 38) :=	(
+		OpADD 	& X"FF" & X"00" & '1' & '0' & X"FF" & "-010100",
+		OpADD 	& X"0F" & X"01" & '1' & '0' & X"10" & "-100000",
+		OpADC 	& X"FF" & X"00" & '1' & '0' & X"00" & "-100011",
+		OpADC 	& X"FF" & X"00" & '0' & '0' & X"FF" & "-010100",
+		OpAND 	& X"FF" & X"55" & '0' & '0' & X"55" & "--0000-",
+		OpAND 	& X"FF" & X"00" & '0' & '0' & X"00" & "--0001-",
+		OpANDI	& X"FF" & X"00" & '0' & '0' & X"00" & "--0001-",
+		OpASR 	& X"AA" & X"00" & '0' & '0' & X"D5" & "--01100",
+		OpCOM 	& X"00" & X"AA" & '0' & '0' & X"55" & "--00001",
+		OpCOM 	& X"00" & X"FF" & '0' & '0' & X"00" & "--00011",
+		OpCP 		& X"00" & X"AA" & '0' & '0' & X"56" & "-100001",
+		OpCPC 	& X"00" & X"AA" & '1' & '0' & X"55" & "-100001",
+		OpCPC 	& X"00" & X"AA" & '0' & '0' & X"56" & "-100001",
+		OpCPI 	& X"00" & X"AA" & '0' & '0' & X"56" & "-100001",
+		OpSUB 	& X"00" & X"AA" & '0' & '0' & X"56" & "-100001",
+		OpSBC 	& X"00" & X"AA" & '1' & '0' & X"55" & "-100001",
+		OpSBC 	& X"00" & X"AA" & '0' & '0' & X"56" & "-100001",
+		OpSUBI	& X"00" & X"AA" & '0' & '0' & X"56" & "-100001",
+		OpDEC		& X"A5" & X"FF" & '1' & '0' & X"A4" & "--1010-",
+		OpDEC		& X"00" & X"FF" & '1' & '0' & X"FF" & "--1010-",
+		OpEOR 	& X"AA" & X"55" & '0' & '0' & X"FF" & "--1010-",
+		OpEOR 	& X"FF" & X"FF" & '0' & '0' & X"00" & "--0001-",
+		OpINC		& X"A4" & X"FF" & '1' & '0' & X"A5" & "--1010-",
+		OpINC		& X"FF" & X"FF" & '1' & '0' & X"00" & "--0001-",
+		OpLSR 	& X"AA" & X"55" & '1' & '0' & X"55" & "--00000",
+		OpLSR 	& X"55" & X"55" & '1' & '0' & X"2A" & "--11001",
+		OpNEG 	& X"55" & X"FF" & '1' & '0' & X"01" & "-100001",
+		OpNEG 	& X"FF" & X"55" & '1' & '0' & X"AB" & "-110101",
+		OpNEG 	& X"FF" & X"00" & '1' & '0' & X"00" & "-000010",
+		OpOR  	& X"AA" & X"55" & '1' & '0' & X"FF" & "--1010-",
+		OpOR  	& X"00" & X"00" & '1' & '0' & X"00" & "--0001-",
+		OpORI 	& X"AA" & X"55" & '1' & '0' & X"FF" & "--1010-",
+		OpORI 	& X"00" & X"00" & '1' & '0' & X"00" & "--0001-",
+		OpROR 	& X"AA" & X"00" & '0' & '0' & X"55" & "--00000",
+		OpROR 	& X"AA" & X"00" & '1' & '0' & X"D5" & "--01100",
+		OpROR 	& X"55" & X"55" & '1' & '0' & X"AA" & "--10101",
+		OpSWAP	& X"A3" & X"FF" & '1' & '0' & X"3A" & "-------",
+		OpSWAP	& X"00" & X"FF" & '1' & '0' & X"00" & "-------"
 	);
 	
 	-- Timing Constants -----------------------------------------------------
@@ -246,23 +282,35 @@ begin -- ###################################################################
 	
 		-- some useful variables
 		
-		-- Integer forms of the test objects
+		-- Expected Results
 		variable ExpectedResult		:	std_logic_vector(NUM_BITS-1 downto 0);
-		variable ExpectedNewFlags	:	std_logic_vector(NUM_FLAGS-1 downto 0);
+		variable ExpectedNewFlags	:	std_logic_vector(NUM_FLAGS-2 downto 0);
+		
+		-- variable before assigning to IR
+		variable IR_var				:	std_logic_vector(INSTR_SIZE-1 downto 0);
 		
    begin  -- of stimulus process
 			
 		for i in 1 to TEST_VECTORS'length loop
 			
 			-- Retrieve test values from the vector
-			IR		 		<= TEST_VECTORS(test_tuple_length-1 downto test_tuple_length-opcode_word'length);
-			OperandA 	<= TEST_VECTORS(test_tuple_length-opcode_word'length-1 downto test_tuple_length-opcode_word'length-NUM_BITS);
-			OperandB 	<= TEST_VECTORS(test_tuple_length-opcode_word'length-NUM_BITS-1 downto test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS);
-			CarryFlagIn	<= TEST_VECTORS(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1);
-			TFlagIn 		<= TEST_VECTORS(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1);
+			IR_var 		:= TEST_VECTORS(i)(test_tuple_length-1 downto test_tuple_length-opcode_word'length);
+			OperandA 	<= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-1 downto test_tuple_length-opcode_word'length-NUM_BITS);
+			OperandB 	<= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-1 downto test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS);
+			CarryFlagIn	<= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1);
+			TFlagIn 		<= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1);
 			
-			ExpectedResult 	:= TEST_VECTORS(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-1 downto test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS);
-			ExpectedNewFlags	:= TEST_VECTORS(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS-1 downto 0);
+			ExpectedResult 	:= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-1 downto test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS);
+			ExpectedNewFlags	:= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS-1 downto 0);
+			
+			-- If not testing BLD/BST commands, manually input a destination
+			-- bit so it's not U. (Also needed for undefined IRs)
+			if std_match(IR_var(2 downto 0), "UUU") then
+				IR_var(2 downto 0) := "000";
+			end if;
+			
+			IR <= IR_var; -- Pass the fixed IR;
+			wait for 1 ns;
 			
 			assert(std_match(result, ExpectedResult))
 				report  "Result was wrong."
@@ -272,7 +320,7 @@ begin -- ###################################################################
 				report  "Flag computation was wrong."
 				severity  ERROR;
 		
-			wait for CLK_PERIOD; -- One computation per clock (for now)
+			wait for CLK_PERIOD - 1 ns; -- One computation per clock (for now)
 			
 		end loop;
 			
@@ -301,7 +349,7 @@ begin -- ###################################################################
 
 end TB_ARCHITECTURE;
 
-configuration TESTBENCH_FOR_ALU_tb of SD_tb is
+configuration TESTBENCH_FOR_ALU_tb of ALU_tb is
     for TB_ARCHITECTURE
         for UUT : ALU
             use entity work.ALU(data_flow);

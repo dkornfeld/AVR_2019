@@ -1,4 +1,4 @@
-C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
+C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd {0 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package STANDARD
 -- Loading package TEXTIO
@@ -8,15 +8,48 @@ Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package opcodes
 -- Compiling entity ControlUnit
 -- Compiling architecture data_flow of ControlUnit
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(166): near "process": expecting IF
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(169): Illegal sequential statement.
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(180): Illegal target for signal assignment.
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(180): (vcom-1136) Unknown identifier "TSCBitSelect".
 
-} {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd(560): near "architecture": expecting PROCESS
+
+} {11.0 15.0 16.0 17.0} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package STANDARD
 -- Loading package TEXTIO
 -- Loading package std_logic_1164
 -- Compiling package opcodes
 
-} {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd
+} {} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd {0 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package AVR_2019_constants
+-- Loading package opcodes
+-- Compiling entity ALU_tb
+-- Compiling architecture TB_ARCHITECTURE of ALU_tb
+-- Compiling configuration TESTBENCH_FOR_ALU_tb
+-- Loading entity ALU_tb
+-- Loading architecture TB_ARCHITECTURE of ALU_tb
+-- Loading package std_logic_arith
+-- Loading package STD_LOGIC_UNSIGNED
+-- Loading entity ALU
+-- Loading entity ControlUnit
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd(356): (vcom-1131) Port "TBitSelect" is declared on component "ALU" but not on entity "ALU".
+
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd(356): (vcom-1130) Port "TSCBitSelect" of entity "ALU" is not in the component being instantiated.
+
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd(356): (vcom-1130) Port "BitSetClear" of entity "ALU" is not in the component being instantiated.
+
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd(356): (vcom-1130) Port "SettingClearing" of entity "ALU" is not in the component being instantiated.
+
+** Error: C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd(358): VHDL Compiler exiting
+
+} {18.0 19.0 20.0 21.0 22.0 23.0 24.0 25.0 26.0 27.0} {}} C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd
 Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
 -- Loading package STANDARD
 -- Compiling package AVR_2019_constants

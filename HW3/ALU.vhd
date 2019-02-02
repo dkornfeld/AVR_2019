@@ -24,9 +24,15 @@
 --		Subtract			(std_logic)									- Command subtraction from adder
 --		CarryInControl	(std_logic_vector(1 downto 0))		- Mux lines for carry in to adder
 --		ALUResultSel	(std_logic)									- Select between adder and SR
---		TBitSelect		(std_logic_vector(2 downto 0))		- Select which register bit
+--		TSCBitSelect	(std_logic_vector(2 downto 0))		- Select which register bit
 --																				for loading/storing T
+--																			- Doubles for selecting which bit
+--																			- to set or clear
 --		TLoad				(std_logic)									- Indicate if loading from T flag
+--		BitSetClear		(std_logic)									- Indicates if we're setting or
+--																			- resetting the selected bit
+--		SettingClearing(std_logic)									- Indicates if we're changing a
+--																			- bit at all
 --		
 -- Outputs:
 --		Result      	(std_logic_vector(NUM_BITS-1 downto 0))		- Output from ALU
@@ -38,10 +44,12 @@
 --		01/31/19	David Kornfeld		Implemented first code from block diagram
 --		01/31/19	David Kornfeld		Implemented SWAP
 --		01/31/19	David Kornfeld		cleaned up ins and outs list and documentation
+--		02/02/19	David Kornfeld		Changed T bit signals and added bit setting/clearing
 -----------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.std_logic_unsigned.all;
 use work.AVR_2019_constants.all;
 -----------------------------------------------------------------------------------------
 entity ALU is
@@ -59,8 +67,10 @@ entity ALU is
 		CarryInControl	:	in		std_logic_vector(1 downto 0);
 		ALUResultSel	:	in		std_logic;
 		FlagMask			:	in		std_logic_vector(NUM_FLAGS-1 downto 0);
-		TBitSelect		:	in		std_logic_vector(2 downto 0);
+		TSCBitSelect	:	in		std_logic_vector(2 downto 0);
 		TLoad				:	in		std_logic;
+		BitSetClear		:	in		std_logic;
+		SettingClearing:	in		std_logic;
 		Result      	:	out	std_logic_vector(NUM_BITS-1 downto 0);
 		NewFlags			:	out	std_logic_vector(NUM_FLAGS-2 downto 0)
 	);
@@ -89,7 +99,9 @@ architecture data_flow of ALU is
 	signal CarryIn		:	std_logic;
 	signal CarryOut	:	std_logic;
 	signal SRout		:	std_logic_vector(NUM_BITS-1 downto 0);
-	signal RegIndex	:	integer;
+	signal RegIndex	:	integer := 0; -- Initialized purely for simulation reasons
+													-- Protects against out-of-range indexing
+													-- from undefineds
 	
 	signal pre_result	:	std_logic_vector(NUM_BITS-1 downto 0);
 	signal pre_flags	:	std_logic_vector(NUM_FLAGS-2 downto 0);
@@ -131,7 +143,7 @@ begin
 					not CarryFlag 				when CarryInControl = "11";	  -- Use its inv.
 	
 	-- Initialize the generation loop
-	Carries(0) <= CarryIn xor Subtract;
+	Carries(0) <= CarryIn;-- xor Subtract;
 	
 	-- Generate the adder and carry bits
 	AdderGenerate: for i in 0 to NUM_BITS-1 generate
@@ -171,7 +183,7 @@ begin
 	-- Output selection and loading from T flag #########################################
 	
 	-- Decode the binary to an index we can use
-	RegIndex <= to_integer(unsigned(TBitSelect));
+	RegIndex <= conv_integer(TSCBitSelect);
 	
 	process(Sum, SRout, ALUResultSel, TLoad, TFlag)
 	begin
@@ -186,12 +198,18 @@ begin
 		if TLoad = '1' then
 			pre_result(RegIndex) <= TFlag;
 		end if;
+		
+		-- If doing a bit set or clear instruction
+		if SettingClearing = '1' then
+			pre_result(RegIndex) <= BitSetClear;
+		end if;
+		
 	end process;
 	
 	-- Flag computation #################################################################
 	
 	-- Z Flag is just when result is all zeros
-	pre_flags(FLAG_Z) <= 	'1' when std_match(pre_result, ZEROS) else
+	pre_flags(FLAG_Z) <= '1' when std_match(pre_result, ZEROS) else
 								'0';
 								
 	-- N Flag is just the high bit of the result
@@ -220,8 +238,7 @@ begin
 	-- C Flag. Carry. Follows normal behavior for all left shifts and arithmetic 
 	--						operations. It's the low bit when rotating right and set when
 	--						doing COM
-	pre_flags(FLAG_C) <= '1' 		when std_match(FSRControl, "0011") else -- Not A (COM)
-								CarryOut	when ALUResultSel='0' else -- Arithmetic
+	pre_flags(FLAG_C) <= CarryOut	when ALUResultSel='0' else -- Arithmetic
 								OperandA(0);
 								
 	-- Connect output of result/flags ##################################################

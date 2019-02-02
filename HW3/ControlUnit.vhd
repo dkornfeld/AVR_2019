@@ -49,16 +49,23 @@
 --								10 -> Z
 --								11 -> SP
 --		AddrRegWr		(std_logic)												- Address Reg (write) En
+--		SFlag   			(std_logic)		                    - Indicate if touching bit in SREG
 --
---		ALU Control Signals: ###############################################################
+--		ALU Control Signals: ##############################################################
 --		N_AddMask		(std_logic) 								- Active low mask for Operand A
 --		FSRControl		(std_logic_vector(3 downto 0))		- F block and shifter control lines
 --		Subtract			(std_logic)									- Command subtraction from adder
 --		CarryInControl	(std_logic_vector(1 downto 0))		- Mux lines for carry in to adder
 --		ALUResultSel	(std_logic)									- Select between adder and SR
---		TBitSelect		(std_logic_vector(2 downto 0))		- Select which register bit
+--		TSCBitSelect	(std_logic_vector(2 downto 0))		- Select which register bit
 --																				for loading/storing T
+--																			- Doubles for selecting which bit
+--																			- to set or clear
 --		TLoad				(std_logic)									- Indicate if loading from T flag
+--		BitSetClear		(std_logic)									- Indicates if we're setting or
+--																			- resetting the selected bit
+--		SettingClearing(std_logic)									- Indicates if we're changing a
+--																			- bit at all
 --
 --		Program Memory Access Unit Control Signals: ########################################
 --		PCUpdateEn		(std_logic) 								- Enable PC to update
@@ -76,6 +83,7 @@
 -- 	01/24/19	David	Kornfeld		Initial Revision
 --		01/31/19	David Kornfeld		Added clock input and test input for IR
 --		01/31/19	David Kornfeld		Began first implementation of ALU controls and FSM
+--		01/31/19	Bobby Abrahamson  Integrated register unit
 -----------------------------------------------------------------------------------------
 library  ieee;
 use ieee.std_logic_1164.all;
@@ -111,6 +119,7 @@ entity ControlUnit is
 		AddrDataIn		:	out	std_logic_vector(2*NUM_BITS-1 downto 0);
 		AddrRegSel		:	out	std_logic_vector(1 downto 0);
 		AddrRegWrSel	:	out	std_logic_vector(1 downto 0);
+		SFlag         	: 	out 	std_logic;
 		-- ALU
 		N_AddMask		:	out	std_logic;
 		FSRControl		:	out	std_logic_vector(3 downto 0);
@@ -119,8 +128,10 @@ entity ControlUnit is
 		ALUResultSel	:	out	std_logic;
 		CarryFlag		:	out	std_logic;
 		TFlag				:	out	std_logic;
-		TBitSelect		:	out	std_logic_vector(2 downto 0);
+		TSCBitSelect	:	out	std_logic_vector(2 downto 0);
 		TLoad				:	out	std_logic;
+		BitSetClear		:	out	std_logic;
+		SettingClearing:	out	std_logic;
 		FlagMask			:	out	std_logic_vector(NUM_FLAGS-1 downto 0);
 		-- PMAU
 		PCUpdateEn		:	out	std_logic;
@@ -134,18 +145,19 @@ entity ControlUnit is
 	);
 end ControlUnit;
 -----------------------------------------------------------------------------------------
-architecture data_flow of ControlUnit is
+architecture data_flow of ControlUnit is    
+    -- Storage for the current cycle count
 	signal instr_cycle	:	std_logic_vector(MAX_INSTR_CLKS-1 downto 0); 	-- 1-hot cycle
-																									-- counter
-	signal reset_instr_counter	:	std_logic;
+                                                                            -- counter
+	signal reset_instr_counter	:	std_logic;	-- Active high reset
 begin
-
+	
 	-- Instruction cycle counter logic
 	process(clock)
 	begin
 		if rising_edge(clock) then
 			if reset_instr_counter = '1' then
-				-- Synchronous reset to 1 in the leftmost place
+				-- Synchronous reset to 1 in the rightmost place
 				instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
 			else
 				-- Shift the bit left
@@ -155,11 +167,21 @@ begin
 	end process;
 	
 	-- Instruction decoding
-	process(IR)
+	process(IR, instr_cycle)
 	begin
 		-- Default, can assume that register selects follow Rd, Rr scheme from instr set
 		RegASel <= IR(8 downto 4);
 		RegBSel <= IR(9) & IR(3 downto 0);
+		
+		-- Default, assume a one-clock instruction
+		reset_instr_counter <= '1';
+		
+		-- Default, always use lower 3 bits to determine which bit in byte to alter with
+		-- set/clear/T flag
+		TSCBitSelect		<= IR(2 downto 0);
+        
+		-- SREG output defaults (TODO)
+		SFlag <= '0';
 		
 		if std_match(IR, OpADC) then
 			-- ALU
@@ -168,8 +190,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "10"; 	-- Use carry flag
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpADD) then
@@ -179,20 +202,39 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No initial carry
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
-		--if std_match(IR, OpADIW) then
-		--	-- ALU
-		--	N_AddMask		<= '1';		-- Adding normally
-		--	FSRControl		<= "1010"; 	-- B
-		--	Subtract			<= '0'; 		-- Not subtracting
-		--	CarryInControl	<= "10"; 	-- Use carry flag
-		--	ALUResultSel	<= '0';		-- Adder
-		--	TBitSelect		<= IR(2 downto 0); -- Don't care
-		--	TLoad				<= '0';		-- Not loading from T
-		--end if;
+		if std_match(IR, OpADIW) then
+			-- ALU
+			N_AddMask		<= '1';		-- Adding normally
+			Subtract			<= '0';     -- Not subtracting
+			ALUResultSel	<= '0';		-- Adder
+			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
+			
+			-- The even registers for A and B are encoded in
+			-- bits 5 and 4 and can easily be turned into
+			-- corresponding 5-bit signals. If in the second
+			-- cycle, move up one register and reset the
+			-- cycle counter;
+			RegASel 	<= "11" & IR(5 downto 4) & instr_cycle(1);
+			RegWrSel <= "11" & IR(5 downto 4) & instr_cycle(1);
+			reset_instr_counter <= instr_cycle(1);
+			
+			-- Now set the cycle-dependent controls
+			if instr_cycle(0) = '1' then 	-- 1/2, ADD B
+				 FSRControl			<= "1010"; 	-- B
+				 CarryInControl	<= "00"; 	-- No initial carry
+			end if;
+			if instr_cycle(1) = '1' then 	-- 2/2, ADC to 0
+				 FSRControl			<= "0000"; 	-- 0x00 (0)
+				 CarryInControl	<= "10"; 	-- Use carry flag
+			end if;
+		end if;
 		
 		if std_match(IR, OpAND) then
 			-- ALU
@@ -201,8 +243,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No initial carry
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 	
 		if std_match(IR, OpANDI) then
@@ -212,8 +255,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No initial carry
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpASR) then
@@ -223,20 +267,24 @@ begin
 			Subtract			<= '0'; 		-- Don't care
 			CarryInControl	<= "00"; 	-- Don't care
 			ALUResultSel	<= '1';		-- Shifter
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
-	--	if std_match(IR, OpBCLR) then
-	--		-- ALU
-	--		N_AddMask		<= '1';		-- Adding normally
-	--		FSRControl		<= "1010"; 	-- B
-	--		Subtract			<= '0'; 		-- Not subtracting
-	--		CarryInControl	<= "10"; 	-- Use carry flag
-	--		ALUResultSel	<= '0';		-- Adder
-	--		TBitSelect		<= IR(2 downto 0); -- Don't care
-	--		TLoad				<= '0';		-- Not loading from T
-	--	end if;
+	  	if std_match(IR, OpBCLR) then
+	  		-- ALU
+	  		N_AddMask		<= '0';		-- Mask A op
+	  		FSRControl		<= "1010"; 	-- B, passthrough
+	  		Subtract			<= '0'; 		-- Not subtracting
+	  		CarryInControl	<= "00"; 	-- No carry influence
+	  		ALUResultSel	<= '0';		-- Adder
+	  		TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '1'; 		-- Change a bit
+			BitSetClear 	<= '0';		-- to 0
+         -- Registers (TODO)
+         SFlag           <= '1';  	-- Directly write to SREG
+	  	end if;
 		
 		if std_match(IR, OpBLD) then
 			-- ALU
@@ -245,20 +293,24 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No carry in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- from IR
 			TLoad				<= '1';		-- Loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
-	--	if std_match(IR, OpBSET) then
-	--		-- ALU
-	--		N_AddMask		<= '1';		-- Adding normally
-	--		FSRControl		<= "1010"; 	-- B
-	--		Subtract			<= '0'; 		-- Not subtracting
-	--		CarryInControl	<= "10"; 	-- Use carry flag
-	--		ALUResultSel	<= '0';		-- Adder
-	--		TBitSelect		<= IR(2 downto 0); -- Don't care
-	--		TLoad				<= '0';		-- Not loading from T
-	--	end if;
+	  	if std_match(IR, OpBSET) then
+	  		-- ALU
+	  		N_AddMask		<= '0';		-- Mask AS op
+	  		FSRControl		<= "1010"; 	-- B, passthrough
+	  		Subtract			<= '0'; 		-- Not subtracting
+	  		CarryInControl	<= "00"; 	-- No carry influence
+	  		ALUResultSel	<= '0';		-- Adder
+	  		TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '1'; 		-- Change a bit
+			BitSetClear 	<= '1';		-- to 1
+			-- Registers (TODO)
+			SFlag				<= '1';		-- Directly write to SREG
+		end if;
 		
 		if std_match(IR, OpBST) then
 			-- ALU
@@ -267,63 +319,69 @@ begin
 			Subtract			<= '0'; 		-- Don't care
 			CarryInControl	<= "00"; 	-- Don't care
 			ALUResultSel	<= '0';		-- Don't care
-			TBitSelect		<= IR(2 downto 0); -- from IR
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpCOM) then
 			-- ALU
 			N_AddMask		<= '0';		-- Logical operation
 			FSRControl		<= "0101"; 	-- not B
-			Subtract			<= '0'; 		-- Not subtracting
+			Subtract			<= '1'; 		-- Forces Carry=1
 			CarryInControl	<= "00"; 	-- no carry
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpCP) then
 			-- ALU
 			N_AddMask		<= '1';		-- Subtracting normally
-			FSRControl		<= "1010"; 	-- B
+			FSRControl		<= "0101"; 	-- not B
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "01"; 	-- No borrow in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpCPC) then
 			-- ALU
 			N_AddMask		<= '1';		-- Subtracting normally
-			FSRControl		<= "1010"; 	-- B
+			FSRControl		<= "0101"; 	-- not B
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "11"; 	-- Use carry bar
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpCPI) then
 			-- ALU
 			N_AddMask		<= '1';		-- Subtracting normally
-			FSRControl		<= "1010"; 	-- B
+			FSRControl		<= "0101"; 	-- not B
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "01"; 	-- No borrow in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpDEC) then
 			-- ALU
 			N_AddMask		<= '1';		-- Subtracting normally
 			FSRControl		<= "1111"; 	-- 11111111 (-1)
-			Subtract			<= '1'; 		-- Subtracting
-			CarryInControl	<= "01"; 	-- No borrow in
+			Subtract			<= '0'; 		-- Adding (-1)
+			CarryInControl	<= "00"; 	-- No carry influence
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpEOR) then
@@ -333,8 +391,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No carry in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpINC) then
@@ -344,8 +403,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "01"; 	-- Add one
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpLSR) then
@@ -355,19 +415,21 @@ begin
 			Subtract			<= '0'; 		-- Don't care
 			CarryInControl	<= "00"; 	-- Don't care
 			ALUResultSel	<= '1';		-- Shifter
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpNEG) then
 			-- ALU
 			N_AddMask		<= '0';		-- Unary operation
 			FSRControl		<= "0101"; 	-- not B
-			Subtract			<= '0'; 		-- Not subtracting (TODO, check if this produces the right carry)
+			Subtract			<= '1'; 		-- Act like subtract
 			CarryInControl	<= "01"; 	-- Add one
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpOR) then
@@ -377,8 +439,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No carry in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpORI) then
@@ -388,8 +451,9 @@ begin
 			Subtract			<= '0'; 		-- Not subtracting
 			CarryInControl	<= "00"; 	-- No carry in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpROR) then
@@ -399,8 +463,9 @@ begin
 			Subtract			<= '0'; 		-- Don't care
 			CarryInControl	<= "00"; 	-- Shifter
 			ALUResultSel	<= '1';		-- Shifter
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpSBC) then
@@ -410,8 +475,9 @@ begin
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "11"; 	-- Use carry bar
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpSBCI) then
@@ -421,20 +487,39 @@ begin
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "11"; 	-- Use carry bar
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
-	--	if std_match(IR, OpSBIW) then
-	--		-- ALU
-	--		N_AddMask		<= '1';		-- Subtracting normally
-	--		FSRControl		<= "0101"; 	-- not B
-	--		Subtract			<= '1'; 		-- Subtracting
-	--		CarryInControl	<= "11"; 	-- Use carry bar
-	--		ALUResultSel	<= '0';		-- Adder
-	--		TBitSelect		<= IR(2 downto 0); -- Don't care
-	--		TLoad				<= '0';		-- Not loading from T
-	--	end if;
+		if std_match(IR, OpSBIW) then
+			-- ALU
+			N_AddMask		<= '1';		-- Subtracting normally
+			Subtract			<= '1';     -- Subtracting
+			ALUResultSel	<= '0';		-- Adder
+			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
+			
+			-- The even registers for A and B are encoded in
+			-- bits 5 and 4 and can easily be turned into
+			-- corresponding 5-bit signals. If in the second
+			-- cycle, move up one register and reset the
+			-- cycle counter;
+			RegASel 	<= "11" & IR(5 downto 4) & instr_cycle(1);
+			RegWrSel <= "11" & IR(5 downto 4) & instr_cycle(1);
+			reset_instr_counter <= instr_cycle(1);
+			
+			-- Now set the cycle-dependent controls
+			if instr_cycle(0) = '1' then 	-- 1/2, SUB B
+				 FSRControl			<= "0101"; 	-- not B
+				 CarryInControl	<= "01"; 	-- No initial borrow
+			end if;
+			if instr_cycle(1) = '1' then 	-- 2/2, SBC to 0
+				 FSRControl			<= "0000"; 	-- 0x00 (0)
+				 CarryInControl	<= "11"; 	-- Use carry bar
+			end if;
+		end if;
 		
 		if std_match(IR, OpSUB) then
 			-- ALU
@@ -443,8 +528,9 @@ begin
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "01"; 	-- No borrow in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpSUBI) then
@@ -454,8 +540,9 @@ begin
 			Subtract			<= '1'; 		-- Subtracting
 			CarryInControl	<= "01"; 	-- No borrow in
 			ALUResultSel	<= '0';		-- Adder
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 		
 		if std_match(IR, OpSWAP) then
@@ -465,8 +552,10 @@ begin
 			Subtract			<= '0'; 		-- Don't care
 			CarryInControl	<= "00"; 	-- Don't care
 			ALUResultSel	<= '1';		-- Shifter
-			TBitSelect		<= IR(2 downto 0); -- Don't care
 			TLoad				<= '0';		-- Not loading from T
+			SettingClearing<= '0'; 		-- Not setting/clearing
+			BitSetClear 	<= '0';		-- Don't care
 		end if;
 	end process;
+
 end architecture;

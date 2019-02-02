@@ -14,46 +14,226 @@
 --																numbers. 
 --
 -- Inputs:
---		clock				(std_logic)												- Clock input
 --		OperandA      	(std_logic_vector(NUM_BITS-1 downto 0))		- Input A to ALU
 --		OperandB      	(std_logic_vector(NUM_BITS-1 downto 0))		- Input A to ALU
+--		CarryFlag		(std_logic)									- Carry flag from the SREG
+--		TFlag				(std_logic)									- T Flag from the SREG
 --		Control Signals: ##################################################################
 --		N_AddMask		(std_logic) 								- Active low mask for Operand A
---		FControl			(std_logic_vector(3 downto 0))		- F block control lines
+--		FSRControl		(std_logic_vector(3 downto 0))		- F block and shifter control lines
 --		Subtract			(std_logic)									- Command subtraction from adder
 --		CarryInControl	(std_logic_vector(1 downto 0))		- Mux lines for carry in to adder
---		SRControl		(std_logic_vector(5 downto 0))		- Shifter/Rotator Control lines
 --		ALUResultSel	(std_logic)									- Select between adder and SR
---		FlagMask			(std_logic_vector(NUM_FLAGS-1 downto 0))	- Mask for updating StatReg
+--		TBitSelect		(std_logic_vector(2 downto 0))		- Select which register bit
+--																				for loading/storing T
+--		TLoad				(std_logic)									- Indicate if loading from T flag
 --		
 -- Outputs:
 --		Result      	(std_logic_vector(NUM_BITS-1 downto 0))		- Output from ALU
---		StatReg      	(std_logic_vector(NUM_FLAGS-1 downto 0))		- Status register (flags)
+--		NewFlags			(std_logic_vector(NUM_FLAGS-2 downto 0))		- New flags to SREG
+--																						- (minus I Flag)
 --
 -- Revision History:
 -- 	01/24/19	David	Kornfeld		Initial Revision
+--		01/31/19	David Kornfeld		Implemented first code from block diagram
+--		01/31/19	David Kornfeld		Implemented SWAP
+--		01/31/19	David Kornfeld		cleaned up ins and outs list and documentation
 -----------------------------------------------------------------------------------------
-library  ieee;
--- Library instantiations
-use	work.AVR_2019_constants.all;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.AVR_2019_constants.all;
 -----------------------------------------------------------------------------------------
 entity ALU is
 	generic	(
 		NUM_BITS			:	integer := NUM_BITS -- Number of bits to use (from header)
 	);
 	port 		(
-		clock				:	in		std_logic;
 		OperandA      	:	in		std_logic_vector(NUM_BITS-1 downto 0);
 		OperandB      	:	in		std_logic_vector(NUM_BITS-1 downto 0);
+		CarryFlag		:	in		std_logic;
+		TFlag				:	in		std_logic;
 		N_AddMask		:	in		std_logic;
-		FControl			:	in		std_logic_vector(3 downto 0);
+		FSRControl		:	in		std_logic_vector(3 downto 0);
 		Subtract			:	in		std_logic;
 		CarryInControl	:	in		std_logic_vector(1 downto 0);
-		SRControl		:	in		std_logic_vector(5 downto 0);
 		ALUResultSel	:	in		std_logic;
 		FlagMask			:	in		std_logic_vector(NUM_FLAGS-1 downto 0);
+		TBitSelect		:	in		std_logic_vector(2 downto 0);
+		TLoad				:	in		std_logic;
 		Result      	:	out	std_logic_vector(NUM_BITS-1 downto 0);
-		StatReg      	:	out	std_logic_vector(NUM_FLAGS-1 downto 0)
+		NewFlags			:	out	std_logic_vector(NUM_FLAGS-2 downto 0)
 	);
 end ALU;
 -----------------------------------------------------------------------------------------
+architecture data_flow of ALU is
+
+	-- Constants for Flags array readability
+	constant FLAG_T	:	integer := 6;
+	constant FLAG_H	:	integer := 5;
+	constant FLAG_S	:	integer := 4;
+	constant FLAG_V	:	integer := 3;
+	constant FLAG_N	:	integer := 2;
+	constant FLAG_Z	:	integer := 1;
+	constant FLAG_C	:	integer := 0;
+	
+	-- Utility/readability
+	constant ZEROS		:	std_logic_vector(NUM_BITS-1 downto 0) := 
+								std_logic_vector(to_unsigned(0, NUM_BITS));
+
+	signal Fout			:	std_logic_vector(NUM_BITS-1 downto 0);
+	signal AdderInA	:	std_logic_vector(NUM_BITS-1 downto 0);
+	signal AdderInB	:	std_logic_vector(NUM_BITS-1 downto 0);
+	signal Sum			:	std_logic_vector(NUM_BITS-1 downto 0);
+	signal Carries		:	std_logic_vector(NUM_BITS downto 0);
+	signal CarryIn		:	std_logic;
+	signal CarryOut	:	std_logic;
+	signal SRout		:	std_logic_vector(NUM_BITS-1 downto 0);
+	signal RegIndex	:	integer;
+	
+	signal pre_result	:	std_logic_vector(NUM_BITS-1 downto 0);
+	signal pre_flags	:	std_logic_vector(NUM_FLAGS-2 downto 0);
+begin
+	-- F Block ###########################################################################
+	-- Bit-wise logical operatins depending on positions of FSRControl. Fout receives:
+	--		0000 -> Zero Vector
+	--		0001 -> A nor B
+	--		1100 -> A
+	--		1010 -> B
+	--		0011 -> not A
+	--		0101 -> not B
+	--		0110 -> A xor B
+	--		0111 -> A nand B
+	--		1000 -> A and B
+	--		1001 -> A xnor B
+	--		1110 -> A or B
+	--		1111 -> Ones vector
+	FGenerate: for i in 0 to NUM_BITS-1 generate
+		Fout(i)	<=		(FSRControl(0) and 	(not OperandA(i)) and (not OperandB(i))) or
+							(FSRControl(1) and  	(not OperandA(i)) and (    OperandB(i))) or
+							(FSRControl(2) and  	(    OperandA(i)) and (not OperandB(i))) or
+							(FSRControl(3) and  	(    OperandA(i)) and (    OperandB(i)));
+	end generate;
+	
+	-- Full Adder ########################################################################
+	
+	-- Inputs to adder are the selectively masked A Operand and the F block
+	AdderInAGenerate: for i in 0 to NUM_BITS-1 generate
+		AdderInA(i) <= OperandA(i) and N_AddMask;
+	end generate;
+	
+	AdderInB <= Fout;
+	
+	-- Multiplex the CarryIn
+	CarryIn	<= '0' 							when CarryInControl = "00" else -- Normal
+					'1' 							when CarryInControl = "01" else -- Force + 1
+					CarryFlag				 	when CarryInControl = "10" else -- Use Carry Flag
+					not CarryFlag 				when CarryInControl = "11";	  -- Use its inv.
+	
+	-- Initialize the generation loop
+	Carries(0) <= CarryIn xor Subtract;
+	
+	-- Generate the adder and carry bits
+	AdderGenerate: for i in 0 to NUM_BITS-1 generate
+		Sum(i)			<=	AdderInA(i) xor AdderInB(i) xor Carries(i);
+		Carries(i+1)	<= (Carries(i) and (AdderInA(i) or AdderInB(i))) or 
+								(AdderInA(i) and AdderInB(i));
+	end generate;
+	
+	-- CarryOut is just the last carry xor'd with subtract (for borrow)
+	CarryOut <= Carries(NUM_BITS) xor Subtract;
+	
+	-- Shifter/Rotator ##################################################################
+	
+	-- All left shifts done with adder, so only need to worry about right shifts. Only
+	-- uppermost bit is the one with any muxing. All others always just move down. This
+	-- of course assumes we are not swapping, which is just a special case of shifting.
+	process(FSRControl, OperandA, CarryFlag)
+	begin
+		-- First, assume not swapping
+		SRout(NUM_BITS-2 downto 0) <= OperandA(NUM_BITS-1 downto 1);
+		
+		case FSRControl is
+			when "0110" 	=> SRout(NUM_BITS-1) 	<= '0';						-- LSR
+			when "0101" 	=> SRout(NUM_BITS-1) 	<= OperandA(NUM_BITS-1);-- ASR
+			when "0111" 	=> SRout(NUM_BITS-1) 	<= CarryFlag;				-- ROR
+			when "0010"		=>	SRout(NUM_BITS-1)		<= OperandA((NUM_BITS/2)-1); -- SWAP
+			when others		=> SRout(NUM_BITS-1) 	<= '1';						-- Others
+		end case;
+		
+		-- But if we are swapping
+		if std_match(FSRControl, "0010") then
+			SRout(NUM_BITS-2 downto NUM_BITS/2) <= OperandA((NUM_BITS/2)-2 downto 0);
+			SRout((NUM_BITS/2) - 1 downto 0) <= OperandA(NUM_BITS-1 downto NUM_BITS/2);
+		end if;
+	end process;
+	
+	-- Output selection and loading from T flag #########################################
+	
+	-- Decode the binary to an index we can use
+	process(TBitSelect)
+	begin
+		if TBitSelect = "UUU" then -- Protect against UUU in simulation
+			RegIndex <= 0;
+		else
+			RegIndex <= conv_integer(TBitSelect);--to_integer(unsigned(TBitSelect));
+		end if;
+	end process;
+	
+	process(Sum, SRout, ALUResultSel, TLoad, TFlag)
+	begin
+		-- Result is either from the adder (through the F block) or the shifter/rotator
+		if ALUResultSel = '0' then
+			pre_result <= Sum;
+		else -- ALUResultSel = '1'
+			pre_result <= SRout;
+		end if;
+							
+		-- If doing a BLD instruction
+		if TLoad = '1' then
+			pre_result(RegIndex) <= TFlag;
+		end if;
+	end process;
+	
+	-- Flag computation #################################################################
+	
+	-- Z Flag is just when result is all zeros
+	pre_flags(FLAG_Z) <= '1' when std_match(pre_result, ZEROS) else
+								'0';
+								
+	-- N Flag is just the high bit of the result
+	pre_flags(FLAG_N) <=	pre_result(NUM_BITS-1);
+	
+	-- S Flag (Corrected sign bit) is just N xor V
+	pre_flags(FLAG_S) <=	pre_flags(FLAG_N) xor pre_flags(FLAG_V);
+	
+	-- T Flag. Always assume we're doing BST, flag mask will make sure it's not loaded
+	-- 			when it needs to hold
+	pre_flags(FLAG_T) <= OperandA(RegIndex);
+	
+	-- V Flag. Signed Overflow (carry into high bit != carry out of high bit), 
+	-- 			is zero (0) for logical operations and N xor C for shift operations
+	pre_flags(FLAG_V) <= 	-- Logical
+								'0' when (N_AddMask='0' and ALUResultSel='0') else
+								-- Shift Operations
+								pre_flags(FLAG_N) xor pre_flags(FLAG_C) when ALUResultSel='1' else
+								-- Else we can use the carries. Xor is true when !=
+								(Carries(NUM_BITS-1) xor Carries(NUM_BITS));
+								
+	-- H Flag. Half-carry. Set if there was a carry/borrow through middle bit. Cleared
+	--								otherwise.
+	pre_flags(FLAG_H) <= Carries(NUM_BITS/2) xor Subtract;
+	
+	-- C Flag. Carry. Follows normal behavior for all left shifts and arithmetic 
+	--						operations. It's the low bit when rotating right and set when
+	--						doing COM
+	pre_flags(FLAG_C) <= '1' 		when std_match(FSRControl, "0011") else -- Not A (COM)
+								CarryOut	when ALUResultSel='0' else -- Arithmetic
+								OperandA(0);
+								
+	-- Connect output of result/flags ##################################################
+	result 	<= pre_result;
+	NewFlags <= pre_flags;
+	
+	
+end architecture;

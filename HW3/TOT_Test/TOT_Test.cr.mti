@@ -1,0 +1,67 @@
+C:/Users/david/Desktop/TOT_Test/ALU.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Desktop/TOT_Test/ALU.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package std_logic_arith
+-- Loading package STD_LOGIC_UNSIGNED
+-- Loading package AVR_2019_constants
+-- Compiling entity ALU
+-- Compiling architecture data_flow of ALU
+
+} {} {}} C:/Users/david/Desktop/TOT_Test/ALU_REG_tb.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Desktop/TOT_Test/ALU_REG_tb.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package AVR_2019_constants
+-- Loading package opcodes
+-- Compiling entity ALU_tb
+-- Compiling architecture TB_ARCHITECTURE of ALU_tb
+-- Compiling configuration TESTBENCH_FOR_ALU_tb
+-- Loading entity ALU_tb
+-- Loading architecture TB_ARCHITECTURE of ALU_tb
+-- Loading package std_logic_arith
+-- Loading package STD_LOGIC_UNSIGNED
+-- Loading entity ALU
+-- Loading entity Registers
+-- Loading entity ControlUnit
+
+} {} {}} C:/Users/david/Desktop/TOT_Test/Registers.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Desktop/TOT_Test/Registers.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package std_logic_arith
+-- Loading package STD_LOGIC_UNSIGNED
+-- Loading package AVR_2019_constants
+-- Compiling entity Registers
+-- Compiling architecture data_flow of Registers
+
+} {} {}} C:/Users/david/Desktop/TOT_Test/AVR_2019_constants.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Desktop/TOT_Test/AVR_2019_constants.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Compiling package AVR_2019_constants
+
+} {} {}} C:/Users/david/Desktop/TOT_Test/opcodes.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Desktop/TOT_Test/opcodes.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Compiling package opcodes
+
+} {} {}} C:/Users/david/Desktop/TOT_Test/ControlUnit.vhd {1 {vcom -work work -2002 -explicit C:/Users/david/Desktop/TOT_Test/ControlUnit.vhd
+Model Technology ModelSim ALTERA vcom 10.1d Compiler 2012.11 Nov  2 2012
+-- Loading package STANDARD
+-- Loading package TEXTIO
+-- Loading package std_logic_1164
+-- Loading package NUMERIC_STD
+-- Loading package AVR_2019_constants
+-- Loading package opcodes
+-- Compiling entity ControlUnit
+-- Compiling architecture data_flow of ControlUnit
+
+} {} {}}

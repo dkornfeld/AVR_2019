@@ -1,0 +1,240 @@
+m255
+K3
+13
+cModel Technology
+dC:\Users\david\Desktop\REG_Test
+Ealu
+Z0 w1549163595
+Z1 DPx4 work 18 avr_2019_constants 0 22 5K`NYN8jJa]QX@6bPz?cd3
+Z2 DPx4 ieee 15 std_logic_arith 0 22 4`Y?g_lkdn;7UL9IiJck01
+Z3 DPx4 ieee 18 std_logic_unsigned 0 22 RYmj;=TK`k=k>D@Cz`zoB3
+Z4 DPx4 ieee 11 numeric_std 0 22 O3PF8EB`?j9=z7KT`fn941
+Z5 DPx3 std 6 textio 0 22 5>J:;AW>W0[[dW0I6EN1Q0
+Z6 DPx4 ieee 14 std_logic_1164 0 22 5=aWaoGZSMWIcH0i^f`XF1
+Z7 dC:\Users\david\Desktop\TOT_Test
+Z8 8C:/Users/david/Desktop/TOT_Test/ALU.vhd
+Z9 FC:/Users/david/Desktop/TOT_Test/ALU.vhd
+l0
+L55
+V_UV4OlcRJ<F<_a02G7aUz2
+Z10 OV;C;10.1d;51
+32
+Z11 !s108 1549166527.437000
+Z12 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Desktop/TOT_Test/ALU.vhd|
+Z13 !s107 C:/Users/david/Desktop/TOT_Test/ALU.vhd|
+Z14 o-work work -2002 -explicit -O0
+Z15 tExplicit 1
+!s100 5NnXhgNol8?`EQIHVNGjG3
+!i10b 1
+Adata_flow
+R1
+R2
+R3
+R4
+R5
+R6
+Z16 DEx4 work 3 alu 0 22 _UV4OlcRJ<F<_a02G7aUz2
+l107
+L78
+V4^KZAk_=gmgY1foXfDA3e1
+R10
+32
+R11
+R12
+R13
+R14
+R15
+!s100 BzA7U``Z^27mWL7za0jaT2
+!i10b 1
+Ealu_tb
+Z17 w1549166515
+Z18 DPx4 work 7 opcodes 0 22 [iE[]G7g:1^R=G5?1B>PL0
+R1
+R4
+R5
+R6
+R7
+Z19 8C:/Users/david/Desktop/TOT_Test/ALU_REG_tb.vhd
+Z20 FC:/Users/david/Desktop/TOT_Test/ALU_REG_tb.vhd
+l0
+L16
+VDZnbffUV1fN9lZZ]T4GBk1
+R10
+32
+Z21 !s108 1549166527.581000
+Z22 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Desktop/TOT_Test/ALU_REG_tb.vhd|
+Z23 !s107 C:/Users/david/Desktop/TOT_Test/ALU_REG_tb.vhd|
+R14
+R15
+!s100 zl9U0kZAIFdC1Z4a:e;c10
+!i10b 1
+Atb_architecture
+R18
+R1
+R4
+R5
+R6
+Z24 DEx4 work 6 alu_tb 0 22 DZnbffUV1fN9lZZ]T4GBk1
+l260
+L19
+VDDFH3bDYgY8ik9aM_SIMk2
+R10
+32
+R21
+R22
+R23
+R14
+R15
+!s100 :R9IXfX]62J>UGh1ZKTUG1
+!i10b 1
+Pavr_2019_constants
+w1548928810
+R7
+8C:/Users/david/Desktop/TOT_Test/AVR_2019_constants.vhd
+FC:/Users/david/Desktop/TOT_Test/AVR_2019_constants.vhd
+l0
+L13
+V5K`NYN8jJa]QX@6bPz?cd3
+R10
+32
+R14
+R15
+!s100 mICM2IKnk_Cnb00biGZOF0
+!i10b 1
+!s108 1549166527.753000
+!s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Desktop/TOT_Test/AVR_2019_constants.vhd|
+!s107 C:/Users/david/Desktop/TOT_Test/AVR_2019_constants.vhd|
+Econtrolunit
+Z25 w1549163644
+R18
+R1
+R4
+R5
+R6
+R7
+Z26 8C:/Users/david/Desktop/TOT_Test/ControlUnit.vhd
+Z27 FC:/Users/david/Desktop/TOT_Test/ControlUnit.vhd
+l0
+L96
+V8j9iNgJ_h53bLNgE5fi7f0
+R10
+32
+Z28 !s108 1549166527.869000
+Z29 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Desktop/TOT_Test/ControlUnit.vhd|
+Z30 !s107 C:/Users/david/Desktop/TOT_Test/ControlUnit.vhd|
+R14
+R15
+!s100 =;CbCCmm:b_G6V[z?AQN81
+!i10b 1
+Adata_flow
+R18
+R1
+R4
+R5
+R6
+Z31 DEx4 work 11 controlunit 0 22 8j9iNgJ_h53bLNgE5fi7f0
+l162
+L148
+V@[JzCMW5oF=4zocHQZzE13
+R10
+32
+R28
+R29
+R30
+R14
+R15
+!s100 :RUh68TVP=gI6oGl5Hi>Y2
+!i10b 1
+Popcodes
+R5
+R6
+w1548900610
+R7
+8C:/Users/david/Desktop/TOT_Test/opcodes.vhd
+FC:/Users/david/Desktop/TOT_Test/opcodes.vhd
+l0
+L20
+V[iE[]G7g:1^R=G5?1B>PL0
+R10
+32
+R14
+R15
+!s100 5Q>Z>K0g]meWo4Y9ze=9:3
+!i10b 1
+!s108 1549166528.007000
+!s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Desktop/TOT_Test/opcodes.vhd|
+!s107 C:/Users/david/Desktop/TOT_Test/opcodes.vhd|
+Eregisters
+Z32 w1549163816
+R1
+R2
+R3
+R4
+R5
+R6
+R7
+Z33 8C:/Users/david/Desktop/TOT_Test/Registers.vhd
+Z34 FC:/Users/david/Desktop/TOT_Test/Registers.vhd
+l0
+L41
+Va2`_OIz<GVTh<Fod^DJ0f2
+!s100 WbdGcI5J=M2XA;CRS@eJ72
+R10
+32
+!i10b 1
+Z35 !s108 1549166528.137000
+Z36 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Desktop/TOT_Test/Registers.vhd|
+Z37 !s107 C:/Users/david/Desktop/TOT_Test/Registers.vhd|
+R14
+R15
+Adata_flow
+R1
+R2
+R3
+R4
+R5
+R6
+Z38 DEx4 work 9 registers 0 22 a2`_OIz<GVTh<Fod^DJ0f2
+l86
+L64
+Z39 VOa?3@7^Wo@LV>_k^f[a;?2
+Z40 !s100 ^Y0P6<6YKL6nDm3lYH98k1
+R10
+32
+!i10b 1
+R35
+R36
+R37
+R14
+R15
+Ctestbench_for_alu_tb
+aTB_ARCHITECTURE
+eALU_tb
+R31
+R38
+R2
+R3
+R16
+DAx4 work 6 alu_tb 15 tb_architecture 22 DDFH3bDYgY8ik9aM_SIMk2
+R18
+R1
+R4
+R5
+R6
+R24
+R17
+R7
+R19
+R20
+l0
+L412
+V;5D:Q5a]m^K?LS9mAzAfL2
+R10
+32
+R21
+R22
+R23
+R14
+R15
+!s100 kXJ0I]JWde^4CPKgNkFU90
+!i10b 1

@@ -6,8 +6,6 @@
 --
 -- Revision History:
 --		01/31/19	David Kornfeld		Initial Revision
---		02/03/19	David Kornfeld		Added 2-byte tests
---		02/03/19	David Kornfeld		Added new signals for updated ControlUnit
 ----------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

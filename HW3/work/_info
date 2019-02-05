@@ -4,7 +4,7 @@ K3
 cModel Technology
 dC:\altera\13.1
 Ealu
-Z0 w1549163595
+Z0 w1549350946
 Z1 DPx4 work 18 avr_2019_constants 0 22 5K`NYN8jJa]QX@6bPz?cd3
 Z2 DPx4 ieee 15 std_logic_arith 0 22 4`Y?g_lkdn;7UL9IiJck01
 Z3 DPx4 ieee 18 std_logic_unsigned 0 22 RYmj;=TK`k=k>D@Cz`zoB3
@@ -19,7 +19,7 @@ L55
 V_UV4OlcRJ<F<_a02G7aUz2
 Z10 OV;C;10.1d;51
 32
-Z11 !s108 1549330145.914000
+Z11 !s108 1549352033.157000
 Z12 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU.vhd|
 Z13 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU.vhd|
 Z14 o-work work -2002 -explicit -O0
@@ -44,10 +44,10 @@ R12
 R13
 R14
 R15
-!s100 BzA7U``Z^27mWL7za0jaT2
+!s100 cWhVzC;K?IoDIa:7@o2C43
 !i10b 1
 Ealu_tb
-Z17 w1549163587
+Z17 w1549351985
 Z18 DPx4 work 7 opcodes 0 22 [iE[]G7g:1^R=G5?1B>PL0
 R1
 R4
@@ -57,13 +57,13 @@ R7
 Z19 8C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd
 Z20 FC:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd
 l0
-L16
+L22
 VDZnbffUV1fN9lZZ]T4GBk1
-!s100 zl9U0kZAIFdC1Z4a:e;c10
+!s100 ]l@eTRa^N`^I:9cbP]C0;2
 R10
 32
 !i10b 1
-Z21 !s108 1549330146.614000
+Z21 !s108 1549352034.115000
 Z22 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd|
 Z23 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW3/ALU_tb.vhd|
 R14
@@ -75,10 +75,10 @@ R4
 R5
 R6
 Z24 DEx4 work 6 alu_tb 0 22 DZnbffUV1fN9lZZ]T4GBk1
-l229
-L19
+l234
+L25
 Z25 V0@?XWiK7C2BnW4WBd2aad0
-Z26 !s100 n>WOWNeYPf]E<SQ8oJ@MV1
+!s100 E:FkhJ323^b]T?Ne2k4Wa1
 R10
 32
 !i10b 1
@@ -101,30 +101,30 @@ R14
 R15
 !s100 mICM2IKnk_Cnb00biGZOF0
 !i10b 1
-!s108 1549330146.227000
+!s108 1549352033.623000
 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd|
 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW3/AVR_2019_constants.vhd|
 Econtrolunit
-Z27 w1549329859
+Z26 w1549350946
 R18
 R1
 R4
 R5
 R6
 R7
-Z28 8C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
-Z29 FC:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
+Z27 8C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
+Z28 FC:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd
 l0
-L96
+L95
 V8j9iNgJ_h53bLNgE5fi7f0
 R10
 32
-Z30 !s108 1549330146.411000
-Z31 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd|
-Z32 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd|
+Z29 !s108 1549352033.899000
+Z30 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd|
+Z31 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW3/ControlUnit.vhd|
 R14
 R15
-!s100 =;CbCCmm:b_G6V[z?AQN81
+!s100 dOCYFUgN:U25fUT4k_7DG0
 !i10b 1
 Adata_flow
 R18
@@ -132,18 +132,18 @@ R1
 R4
 R5
 R6
-Z33 DEx4 work 11 controlunit 0 22 8j9iNgJ_h53bLNgE5fi7f0
+Z32 DEx4 work 11 controlunit 0 22 8j9iNgJ_h53bLNgE5fi7f0
 l162
-L148
+L147
 VY:d6LZReeLgoEgo@Y>6C@3
 R10
 32
+R29
 R30
 R31
-R32
 R14
 R15
-!s100 :B8CMK2E_5OgfP705l4on2
+!s100 e57SfCz_UH4L^7V5zddnP0
 !i10b 1
 Popcodes
 R5
@@ -161,13 +161,13 @@ R14
 R15
 !s100 5Q>Z>K0g]meWo4Y9ze=9:3
 !i10b 1
-!s108 1549330146.085000
+!s108 1549352033.368000
 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd|
 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW3/opcodes.vhd|
 Ctestbench_for_alu_tb
 aTB_ARCHITECTURE
 eALU_tb
-R33
+R32
 R2
 R3
 R16
@@ -183,9 +183,9 @@ R7
 R19
 R20
 l0
-L363
+L380
 VVQL`Ok4gXDNZC;WhY3Rj51
-!s100 ?>>K;TZh0WbSdiIV85`fg1
+!s100 cg2IMC_^J[]GlC]SSDe[A3
 R10
 32
 !i10b 1

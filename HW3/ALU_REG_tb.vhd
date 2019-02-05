@@ -80,10 +80,10 @@ architecture TB_ARCHITECTURE of ALU_tb is
 		"1111100000000101" & X"00" & X"A3" & '1' & '1' & X"20" & "0------", -- BLD 0x00 5
 		"1111100000000011" & X"08" & X"A3" & '1' & '0' & X"00" & "-------", -- BLD 0x08 3
 		OpADIW	& X"FE" & X"02" & '1' & '1' & X"00" & "-------", -- ADIW 55FE, 2;
-		OpADIW	& X"55" & X"02" & '1' & '1' & X"56" & "-100011", -- ADIW 55FE, 2;
-		OpSBIW	& X"00" & X"3F" & '1' & '1' & X"C1" & "-000000", -- SBIW 0100, 3F;
-		OpSBIW	& X"01" & X"3F" & '1' & '1' & X"00" & "-110101", -- SBIW 0100, 3F;
-		"----------------" & "--------" & "--------" & '-' & '-' & "--------" & "-000010",
+		OpADIW	& X"55" & X"02" & '1' & '1' & X"56" & "--00011", -- ADIW 55FE, 2;
+		OpSBIW	& X"00" & X"3F" & '1' & '1' & X"C1" & "--00000", -- SBIW 0100, 3F;
+		OpSBIW	& X"01" & X"3F" & '1' & '1' & X"00" & "--10101", -- SBIW 0100, 3F;
+		"----------------" & "--------" & "--------" & '-' & '-' & "--------" & "--00010"
 	);
 	
 	-- Timing Constants -----------------------------------------------------
@@ -168,6 +168,7 @@ architecture TB_ARCHITECTURE of ALU_tb is
 			AddrRegSel		:	out	std_logic_vector(1 downto 0);
 			AddrRegWrSel	:	out	std_logic_vector(1 downto 0);
 			SFlag         	: 	out 	std_logic;
+			FlagMask			:	out	std_logic_vector(NUM_FLAGS-1 downto 0);
 			-- ALU
 			N_AddMask		:	out	std_logic;
 			FSRControl		:	out	std_logic_vector(3 downto 0);
@@ -193,7 +194,6 @@ architecture TB_ARCHITECTURE of ALU_tb is
 	-- Unused Signals #######################################################
 	-- ControlUnit
 	-- General
-	signal SREG      		:	std_logic_vector(NUM_FLAGS-1 downto 0);
 	signal ProgDB			:	std_logic_vector(INSTR_SIZE-1 downto 0);
 	signal DataRd			:	std_logic;
 	signal DataWr			:	std_logic;
@@ -202,14 +202,9 @@ architecture TB_ARCHITECTURE of ALU_tb is
 	signal OPBInSel		:	std_logic;
 	-- RegArray
 	signal DBSel			:	std_logic_vector(1 downto 0);
-	signal RegASel			:	std_logic_vector(4 downto 0);
-	signal RegBSel			:	std_logic_vector(4 downto 0);
-	signal RegWrSel		:	std_logic_vector(4 downto 0);
-	signal RegWr			:	std_logic;
 	signal AddrDataIn		:	std_logic_vector(2*NUM_BITS-1 downto 0);
 	signal AddrRegSel		:	std_logic_vector(1 downto 0);
 	signal AddrRegWrSel	:	std_logic_vector(1 downto 0);
-	signal SFlag         : 	std_logic;
 	-- PMAU
 	signal PCUpdateEn		:	std_logic;
 	signal N_PCLoad		:	std_logic_vector(3 downto 0);
@@ -366,7 +361,7 @@ begin -- ###################################################################
 			TFlagIn 		<= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1);
 			
 			ExpectedResult 	:= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-1 downto test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS);
-			ExpectedSREG		:= TEST_VECTORS(i-1)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS-1 downto 0);
+			ExpectedSREG		:= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-NUM_BITS-NUM_BITS-1-1-NUM_BITS-1 downto 0);
 			
 			-- If not testing BLD/BST commands, manually input a destination
 			-- bit so it's not U. (Also needed for undefined IRs)
@@ -378,11 +373,11 @@ begin -- ###################################################################
 			wait for 1 ns;
 			
 			assert(std_match(result, ExpectedResult))
-				report  "Result was wrong."
+				report  "Result was wrong on test " & integer'image(i) & "."
 				severity  ERROR;
 				
-			assert(std_match(NewFlags, ExpectedNewFlags))
-				report  "Flag computation was wrong."
+			assert(std_match(SREG(SREG'length-2 downto 0), ExpectedSREG))
+				report  "Flag computation was wrong from test " & integer'image(i-1) & "."
 				severity  ERROR;
 		
 			wait for CLK_PERIOD - 1 ns; -- One computation per clock (for now)
@@ -416,7 +411,7 @@ end TB_ARCHITECTURE;
 
 configuration TESTBENCH_FOR_ALU_tb of ALU_tb is
     for TB_ARCHITECTURE
-        for UUT : ALU
+        for U_ALU : ALU
             use entity work.ALU(data_flow);
         end for;
     end for;

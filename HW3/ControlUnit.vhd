@@ -150,9 +150,9 @@ architecture data_flow of ControlUnit is
     constant FLAGS_ALL    : std_logic_vector(NUM_FLAGS-1 downto 0) := "01111111";
     constant FLAGS_ZCNVSH : std_logic_vector(NUM_FLAGS-1 downto 0) := "00111111";
     constant FLAGS_ZCNVS  : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011111";
-    constant FLAGS_ZNVS   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011101";
+    constant FLAGS_ZNVS   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011110";
     constant FLAGS_T      : std_logic_vector(NUM_FLAGS-1 downto 0) := "01000000";
-    constant FLAGS_C      : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000010";
+    constant FLAGS_C      : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000001";
     constant FLAGS_NONE   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000000";
 
     -- Storage for the current cycle count

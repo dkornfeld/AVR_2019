@@ -165,15 +165,15 @@ begin
         SRout(NUM_BITS-2 downto 0) <= OperandA(NUM_BITS-1 downto 1);
         
         case FSRControl is
-            when "0110"     => SRout(NUM_BITS-1)    <= '0';                     -- LSR
-            when "0101"     => SRout(NUM_BITS-1)    <= OperandA(NUM_BITS-1);    -- ASR
-            when "0111"     => SRout(NUM_BITS-1)    <= CarryFlag;               -- ROR
-            when "0010"     => SRout(NUM_BITS-1)    <= OperandA((NUM_BITS/2)-1);-- SWAP
-            when others     => SRout(NUM_BITS-1)    <= '1';                     -- Others
+            when ALU_FSR_LSR     => SRout(NUM_BITS-1)    <= '0';                     -- LSR
+            when ALU_FSR_ASR     => SRout(NUM_BITS-1)    <= OperandA(NUM_BITS-1);    -- ASR
+            when ALU_FSR_ROR     => SRout(NUM_BITS-1)    <= CarryFlag;               -- ROR
+            when ALU_FSR_SWAP    => SRout(NUM_BITS-1)    <= OperandA((NUM_BITS/2)-1);-- SWAP
+            when others          => SRout(NUM_BITS-1)    <= '1';                     -- Others
         end case;
         
         -- But if we are swapping
-        if std_match(FSRControl, "0010") then -- Swap the "nibbles"
+        if std_match(FSRControl, ALU_FSR_SWAP) then -- Swap the "nibbles"
             SRout(NUM_BITS-2 downto NUM_BITS/2)     <= OperandA((NUM_BITS/2)-2 downto 0);
             SRout((NUM_BITS/2) - 1 downto 0)        <= OperandA(NUM_BITS-1 downto NUM_BITS/2);
         end if;

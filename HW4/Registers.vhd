@@ -10,19 +10,24 @@
 --
 -- Inputs:
 --        clock            (std_logic)                                  - Input clock
+--        reset            (std_logic)                                  - active low SP reset signal
 --        NewFlags         (std_logic_vector(NUM_FLAGS-2 downto 0))     - New flags to SREG
+--        RegIn            (std_logic_vector(NUM_BITS-1 downto 0))      - Input register data
+--        AddrRegIn        (std_logic_vector(DATA_AB_SIZE-1 downto 0);) - Input Addr Register
 --        Control Signals: #################################################################
 --        RegASel          (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Register A Select lines
 --        RegBSel          (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Register B Select lines
 --        RegWrSel         (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Reg Enable decoder lines
 --        RegWr            (std_logic)                                  - Reg (write) Enable
---        RegIn            (std_logic_vector(NUM_BITS-1 downto 0))      - Input register data
+--        AddrRegSel       (std_logic_vector(1 downto 0))               - Select X vs Y vs Z vs SP
+--        AddrRegWr        (std_logic)                                  - Enable write to Addr Reg
 --        SFlag            (std_logic)                                  - Indicate if directly writing SREG
 --        FlagMask         (std_logic_vector(NUM_FLAGS-1 downto 0))     - Bitmask of flags to update
 --        
 -- Outputs:
 --        RegAOutput       (std_logic_vector(NUM_BITS-1 downto 0)       - Output register A
 --        RegBOutput       (std_logic_vector(NUM_BITS-1 downto 0)       - Output register B
+--        AddrRegOut       (std_logic_vector(DATA_AB_SIZES-1 downto 0)) - Output Addr Register
 --        SREG             (std_logic_vector(NUM_BITS-1 downto 0)       - Output SREG
 --
 -- Revision History:
@@ -30,6 +35,7 @@
 --        01/31/19    Bobby Abrahamson        Implemented first code from block diagram
 --        02/02/19    Bobby Abrahamson        Updated to output SREG for HW3
 --        02/05/19    David Kornfeld          Fixed Interrupt flag sensitivity
+--        02/07/19    David Kornfeld          Added 16-bit register bus and reset on SP
 -----------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -39,36 +45,27 @@ use work.AVR_2019_constants.all;
 -----------------------------------------------------------------------------------------
 entity Registers is
     generic (
-        NUM_BITS    : integer := NUM_BITS                        -- Number of bits to use for a GPR.
+        NUM_BITS    : integer := NUM_BITS   -- Number of bits to use for a GPR.
     );
     port (
-        clock       : in std_logic;                              -- input clock
-        RegWr       : in std_logic;                              -- select write vs not write
-        RegWrSel    : in std_logic_vector(6 downto 0);           -- select register to write to
-        RegASel     : in std_logic_vector(6 downto 0);           -- select register A to read from
-        RegBSel     : in std_logic_vector(6 downto 0);           -- select register B to read from
-        
-        -- SREG
-        SFlag       : in std_logic;                              -- Select direct overwrite of SREG
-        FlagMask    : in std_logic_vector(NUM_BITS-1 downto 0);  -- Bitmask to update in SREG
-        NewFlags    : in std_logic_vector(NUM_FLAGS-2 downto 0); -- New bits for SREG
+        clock       : in std_logic;              
+        reset       : in std_logic;                
+        RegIn       : in std_logic_vector(NUM_BITS-1 downto 0) 
+        AddrRegIn   : in std_logic_vector(DATA_AB_SIZE-1 downto 0);
+        RegWr       : in std_logic;                      
+        RegWrSel    : in std_logic_vector(6 downto 0);      
+        RegASel     : in std_logic_vector(6 downto 0);   
+        RegBSel     : in std_logic_vector(6 downto 0);   
+        SFlag       : in std_logic;                        
+        FlagMask    : in std_logic_vector(NUM_BITS-1 downto 0); 
+        NewFlags    : in std_logic_vector(NUM_FLAGS-2 downto 0); 
+        AddrRegSel  : in std_logic_vector(1 downto 0);       
+        AddrRegWr   : in std_logic;             
 
-        -- 16-bit registers
-        AddrRegIn   : in std_logic_vector(2*NUM_BITS-1 downto 0);  -- Input Addr Register
-        AddrRegOut  : out std_logic_vector(2*NUM_BITS-1 downto 0); -- Output Addr Register
-        AddrRegSel  : in std_logic_vector(1 downto 0);             -- Select X vs Y vs Z vs SP
-        AddrRegWr   : in std_logic;                                -- Enable write to Addr Reg
-
-        -- 8-bit data bus
-        DataDB     : inout std_logic_vector(NUM_BITS-1 downto 0);  -- Data bus (from DataMAU)
-        RegDataOutSel : in std_logic;                              -- Should we output to the data bus?
-
-        -- Active Low Stack Pointer Reset
-        reset       : in std_logic;                              -- Reset Stack Pointer value
-        
-        RegAOutput  : out std_logic_vector(NUM_BITS-1 downto 0); -- Output register A
-        RegBOutput  : out std_logic_vector(NUM_BITS-1 downto 0); -- Output register B
-        SREG        : out std_logic_vector(NUM_BITS-1 downto 0)  -- Output SREG
+        RegAOutput  : out std_logic_vector(NUM_BITS-1 downto 0); 
+        RegBOutput  : out std_logic_vector(NUM_BITS-1 downto 0);
+        AddrRegOut  : out std_logic_vector(DATA_AB_SIZES-1 downto 0);
+        SREG        : out std_logic_vector(NUM_BITS-1 downto 0)
     );
 end Registers;
 
@@ -111,47 +108,45 @@ begin
                   RegData(Z_HIGH) & RegData(Z_LOW) when (AddrRegSel = ADDR_REG_SEL_Z) else -- Z
                   RegData(SP_HIGH) & RegData(SP_LOW) when (AddrRegSel = ADDR_REG_SEL_SP) else -- SP
                   (others => 'X');
-
-    -- Update DataDB
-    DataDB <= RegA when (RegDataOutSel = '1') else (others => 'Z');
             
     -- Write to a register when relevant
-    process(clock, DataDB, AddrRegIn, NewFlags, FlagMask, RegData(SREG_IDX))
+    process(clock, RegIn, AddrRegIn, NewFlags, FlagMask, RegData(SREG_IDX))
     begin
         if rising_edge(clock) then
             -- Write to register if requested
             if (RegWr = '1') then
-                RegData(to_integer(unsigned(RegWrSel))) <= DataDB;
+                RegData(to_integer(unsigned(RegWrSel))) <= RegIn;
             end if;
             -- Set SREG with input if requested
             if (SFlag = '0') then
                 for i in 0 to NUM_FLAGS-2 loop
                     -- Update bit if FlagMask is set, otherwise preserve old value
-                    RegData(SREG_IDX)(i) <= (FlagMask(i) and NewFlags(i)) or ((not FlagMask(i)) and RegData(SREG_IDX)(i));
+                    RegData(SREG_IDX)(i) <= (FlagMask(i) and NewFlags(i)) or 
+                                            ((not FlagMask(i)) and RegData(SREG_IDX)(i));
                 end loop;
                 -- Interrupt flag is never altered via ALU
                 RegData(SREG_IDX)(NUM_FLAGS-1) <= RegData(SREG_IDX)(NUM_FLAGS-1);
             else -- (SFlag = '1')
                 -- Directly write RegIn to SREG
-                RegData(SREG_IDX) <= DataDB;
+                RegData(SREG_IDX) <= Regin;
             end if;
             -- Update Address registers as requested
             if (AddrRegWr = '1') then
                 if (AddrRegSel = ADDR_REG_SEL_X) then     -- Write to X
                     RegData(X_LOW) <= AddrRegIn(NUM_BITS-1 downto 0);
-                    RegData(X_HIGH) <= AddrRegIn(2*NUM_BITS-1 downto NUM_BITS);
+                    RegData(X_HIGH) <= AddrRegIn(DATA_AB_SIZE-1 downto NUM_BITS);
                 end if;
                 if (AddrRegSel = ADDR_REG_SEL_Y) then  -- Write to Y
                     RegData(Y_LOW) <= AddrRegIn(NUM_BITS-1 downto 0);
-                    RegData(Y_HIGH) <= AddrRegIn(2*NUM_BITS-1 downto NUM_BITS);
+                    RegData(Y_HIGH) <= AddrRegIn(DATA_AB_SIZE-1 downto NUM_BITS);
                 end if;
                 if (AddrRegSel = ADDR_REG_SEL_Z) then  -- Write to Z
                     RegData(Z_LOW) <= AddrRegIn(NUM_BITS-1 downto 0);
-                    RegData(Z_HIGH) <= AddrRegIn(2*NUM_BITS-1 downto NUM_BITS);
+                    RegData(Z_HIGH) <= AddrRegIn(DATA_AB_SIZE-1 downto NUM_BITS);
                 end if;
                 if (AddrRegSel = ADDR_REG_SEL_SP) then  -- Write to SP
                     RegData(SP_LOW) <= AddrRegIn(NUM_BITS-1 downto 0);
-                    RegData(SP_HIGH) <= AddrRegIn(2*NUM_BITS-1 downto NUM_BITS);
+                    RegData(SP_HIGH) <= AddrRegIn(DATA_AB_SIZE-1 downto NUM_BITS);
                 end if;
             end if;
             -- Reset the stack pointer to all-ones when requested.

@@ -30,7 +30,7 @@
 --      OutputImmediate (std_logic)                 - Output the IR instead of the computed address
 --      
 -- Outputs:
---      DataAddr        (std_logic_vector(NUM_BITS-1 downto 0))     - Computed data address
+--      DataAB          (std_logic_vector(NUM_BITS-1 downto 0))     - Computed data address
 --      NewAddrData     (std_logic_vector(DATA_AB_SIZE-1 downto 0)) - Updated address reg
 --
 -- Revision History:
@@ -45,11 +45,6 @@ use ieee.std_logic_1164.all;
 use work.AVR_2019_constants.all;
 ----------------------------------------------------------------------------------------------------
 entity DataMAU is
-    generic (
-        NUM_BITS            :   integer := NUM_BITS;
-        DATA_OFFSET_SIZE    :   integer := DATA_OFFSET_SIZE;
-        DATA_AB_SIZE        :   integer := DATA_AB_SIZE
-    );
     port (
         clock           :   in  std_logic;
         IR_Offset       :   in  std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
@@ -59,7 +54,7 @@ entity DataMAU is
         N_OffsetMask    :   in  std_logic;
         PrePostSel      :   in  std_logic;
         OutputImmediate :   in  std_logic;
-        DataAddr        :   out std_logic_vector(NUM_BITS-1 downto 0);
+        DataAB          :   out std_logic_vector(NUM_BITS-1 downto 0);
         NewAddrData     :   out std_logic_vector(DATA_AB_SIZE-1 downto 0)
     );
 end DataMAU;
@@ -142,7 +137,7 @@ begin
     end generate;
 
     -- Multiplex the output between the computed value and the immediate ###########################
-    DataAddr                <=  ComputedAddress when OutputImmediate = '0' else
+    DataAB                  <=  ComputedAddress when OutputImmediate = '0' else
                                 Latched_Immediate_Addr; -- Only output value from ProgDB when
                                                         -- OutputImmediate = '1'
 

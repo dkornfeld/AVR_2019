@@ -39,12 +39,9 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
-
-library opcodes;
-use opcodes.opcodes.all;
-
+use work.AVR_2019_constants.all;
+use work.opcodes.all;
 
 entity  MEM_TEST  is
 
@@ -62,91 +59,188 @@ entity  MEM_TEST  is
 end  MEM_TEST;
 
 architecture data_flow of MEM_TEST is
-    -- Intermediate signals between internal units
+    -- Intermediate signals between internal units #################################################
+    -- Control Unit
+    signal PreDataAB        std_logic_vector(DATA_AB_SIZE-1 downto 0);
+    signal ProgDB           std_logic_vector(INSTR_SIZE-1 downto 0);
+    signal IOSel            std_logic;
+    signal RegInSel         std_logic;
+    signal OPBInSel         std_logic;
+    signal DBEnableOutput   std_logic;
+    signal IR_Immediate     std_logic_vector(NUM_BITS-1 downto 0);
+
+    -- ALU
+    signal CarryFlag        std_logic;
+    signal TFlag            std_logic;
+    signal N_AddMask        std_logic;
+    signal FSRControl       std_logic_vector(3 downto 0);
+    signal Subtract         std_logic;
+    signal CarryInControl   std_logic_vector(1 downto 0);
+    signal ALUResultSel     std_logic;
+    signal TSCBitSelect     std_logic_vector(2 downto 0);
+    signal TLoad            std_logic;
+    signal BitSetClear      std_logic;
+    signal SettingClearing  std_logic;
+    signal Result           std_logic_vector(NUM_BITS-1 downto 0);
+    signal NewFlags         std_logic_vector(NUM_FLAGS-2 downto 0);
+
+    -- Registers              
+    signal AddrRegIn        std_logic_vector(DATA_AB_SIZE-1 downto 0);
+    signal RegWr            std_logic;                      
+    signal RegWrSel         std_logic_vector(6 downto 0);      
+    signal RegASel          std_logic_vector(6 downto 0);   
+    signal RegBSel          std_logic_vector(6 downto 0);   
+    signal SFlag            std_logic;                        
+    signal FlagMask         std_logic_vector(NUM_BITS-1 downto 0); 
+    signal NewFlags         std_logic_vector(NUM_FLAGS-2 downto 0); 
+    signal AddrRegSel       std_logic_vector(1 downto 0);       
+    signal AddrRegWr        std_logic;             
+    signal RegAOutput       std_logic_vector(NUM_BITS-1 downto 0); 
+    signal RegBOutput       std_logic_vector(NUM_BITS-1 downto 0);
+    signal AddrRegOut       std_logic_vector(DATA_AB_SIZES-1 downto 0);
+    signal SREG             std_logic_vector(NUM_BITS-1 downto 0);
+
+    -- DataMAU
+    signal IR_Offset        std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
+    signal N_Inc            std_logic;
+    signal N_OffsetMask     std_logic;
+    signal PrePostSel       std_logic;
+    signal OutputImmediate  std_logic;
 
     -- Actual input to operand B of the ALU. Used for muxing below
     signal OperandBIn       :   std_logic_vector(7 downto 0);
 
 begin
 
-    -- Connect specific flags to the SREG
-    CarryFlag   <= SREG(0);
-    TFlag       <= SREG(6);
+    -- Connect specific flags to the SREG for the ALU
+    CarryFlag   <=  SREG(FLAGS_C);
+    TFlag       <=  SREG(FLAGS_T);
 
-    -- Connect register to ALU
-    OperandAIn  <=  RegAOutput;
+    -- Mux the input to operand B (take immediate from ControlUnit when necessary)
     OperandBIn  <=  RegBOutput when OPBInSel = '0' else
                     IR_Immediate;
+
+    -- Tri-state the DataDB mux when necessary
+    DataDB      <=  Result when DBEnableOutput = '1' else -- Most of the time, output is ALU
+                    (others => 'Z');
+
+    -- Connect the output of the DMAU (since it also needs to go to control unit)
+    DataAB      <=  PreDataAB;
 
     -- Map our Control Unit
     ControlUnit : entity work.ControlUnit
     port map(
+        IR                          => IR                       ,
+
         -- Inputs
-
-        -- ALU Control Signals
-
-        -- Register Control Signals
-
-        -- DMAU Control Signals
-        
+        clock                       => clock                    ,
+        SREG                        => SREG                     ,
+        DataAB                      => PreDataAB                ,
+        ProgDB                      => ProgDB                   ,
+        -- General Control Signals
+        DataRd                      => DataRd                   ,
+        DataWr                      => DataWr                   ,
+        IOSel                       => IOSel                    ,
+        RegInSel                    => RegInSel                 ,
+        OPBInSel                    => OPBInSel                 ,
+        DBSel                       => DBSel                    ,
+        DBEnableOutput              => DBEnableOutput           ,
+        -- Raw values                  
+        IR_Immediate                => IR_Immediate             ,
+        IR_Offset                   => IR_Offset                ,
+        -- RegArray                         
+        RegWr                       => RegWr                    ,
+        RegWrSel                    => RegWrSel                 ,
+        RegASel                     => RegASel                  ,
+        RegBSel                     => RegBSel                  ,
+        SFlag                       => SFlag                    ,
+        FlagMask                    => FlagMask                 ,
+        NewFlags                    => NewFlags                 ,
+        AddrRegSel                  => AddrRegSel               ,
+        AddrRegWr                   => AddrRegWr                ,
+        -- ALU                                      
+        N_AddMask                   => N_AddMask                ,
+        FSRControl                  => FSRControl               ,
+        Subtract                    => Subtract                 ,
+        CarryInControl              => CarryInControl           ,
+        ALUResultSel                => ALUResultSel             ,
+        TSCBitSelect                => TSCBitSelect             ,
+        TLoad                       => TLoad                    ,
+        BitSetClear                 => BitSetClear              ,
+        SettingClearing             => SettingClearing          ,
+        -- PMAU                                   
+        PCUpdateEn                  => PCUpdateEn               ,
+        N_PCLoad                    => N_PCLoad                 ,
+        PCControl                   => PCControl                ,
+        HiLoSel                     => HiLoSel                  ,
+        -- DMAU                                   
+        N_Inc                       => N_Inc                    ,
+        N_OffsetMask                => N_OffsetMask             ,
+        PrePostSel                  => PrePostSel               ,
+        OutputImmediate             => OutputImmediate           
     );
 
     -- Map our Register Array
     ControlUnit : entity work.Registers
     port map(
-        clock           => ,
-        RegWr           => ,
-        RegWrSel        => ,
-        RegASel         => ,
-        RegBSel         => ,
-        SFlag           => ,
-        FlagMask        => ,
-        NewFlags        => ,
-        AddrRegIn       => ,
-        AddrRegOut      => ,
-        AddrRegSel      => ,
-        AddrRegWr       => ,
-        DataDB          => ,
-        RegDataOutSel   => ,
-        reset           => ,
-        RegAOutput      => ,
-        RegBOutput      => ,
-        SREG            => 
+        clock                       => clock      ,
+        reset                       => reset      ,
+        RegIn                       => DataDB     ,
+        AddrRegIn                   => AddrRegIn  ,
+
+        RegWr                       => RegWr      ,
+        RegWrSel                    => RegWrSel   ,
+        RegASel                     => RegASel    ,
+        RegBSel                     => RegBSel    ,
+        SFlag                       => SFlag      ,
+        FlagMask                    => FlagMask   ,
+        NewFlags                    => NewFlags   ,
+        AddrRegSel                  => AddrRegSel ,
+        AddrRegWr                   => AddrRegWr  ,
+
+        RegAOutput                  => RegAOutput ,
+        RegBOutput                  => RegBOutput ,
+        AddrRegOut                  => AddrRegOut ,
+        SREG                        => SREG       
     );
 
     -- Map our DataMAU
     ControlUnit : entity work.DataMAU
-    port map(
-        IR_Offset       => ,
-        Immediate_Addr  => ,
-        InpAddrData     => ,
-        N_Inc           => ,
-        N_OffsetMask    => ,
-        PrePostSel      => ,
-        OutputImmediate => ,
-        DataAddr        => ,
-        NewAddrData     => 
+    port map(                         
+        clock                       => clock          ,  
+        IR_Offset                   => IR_Offset      ,  
+        Immediate_Addr              => ProgDB         ,  
+        InpAddrData                 => AddrRegOut     , 
+
+        N_Inc                       => N_Inc          ,  
+        N_OffsetMask                => N_OffsetMask   ,  
+        PrePostSel                  => PrePostSel     ,  
+        OutputImmediate             => OutputImmediate, 
+
+        DataAB                      => PreDataAB      ,  
+        NewAddrData                 => AddrRegIn    
     );
 
-    -- Map our Control Unit
+    -- Map our ALU
     ControlUnit : entity work.ALU
     port map(
-        OperandA        => ,
-        OperandB        => ,
-        CarryFlag       => ,
-        TFlag           => ,
-        N_AddMask       => ,
-        FSRControl      => ,
-        Subtract        => ,
-        CarryInControl  => ,
-        ALUResultSel    => ,
-        TSCBitSelect    => ,
-        TLoad           => ,
-        BitSetClear     => ,
-        SettingClearing => ,
-        Result          => ,
-        NewFlags        => 
-    );
+        OperandA                    => RegAOutput     ,
+        OperandB                    => OperandBIn     ,
+        CarryFlag                   => CarryFlag      ,
+        TFlag                       => TFlag          ,
 
+        N_AddMask                   => N_AddMask      ,
+        FSRControl                  => FSRControl     ,
+        Subtract                    => Subtract       ,
+        CarryInControl              => CarryInControl ,
+        ALUResultSel                => ALUResultSel   ,
+        TSCBitSelect                => TSCBitSelect   ,
+        TLoad                       => TLoad          ,
+        BitSetClear                 => BitSetClear    ,
+        SettingClearing             => SettingClearing,
+
+        Result                      => Result         ,
+        NewFlags                    => NewFlags       
+    );
 
 end data_flow;

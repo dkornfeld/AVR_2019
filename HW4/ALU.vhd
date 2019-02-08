@@ -45,6 +45,7 @@
 --   	01/31/19    David Kornfeld   	cleaned up ins and outs list and documentation
 --   	02/02/19    David Kornfeld   	Changed T bit signals and added bit setting/clearing
 --      02/04/19    David Kornfeld      Updated documentation
+--      02/08/19    David Kornfeld      Updated documentation
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -76,15 +77,6 @@ entity ALU is
 end ALU;
 ----------------------------------------------------------------------------------------------------
 architecture data_flow of ALU is
-
-    -- Constants for Flags array readability
-    constant FLAG_T    :    integer := 6;
-    constant FLAG_H    :    integer := 5;
-    constant FLAG_S    :    integer := 4;
-    constant FLAG_V    :    integer := 3;
-    constant FLAG_N    :    integer := 2;
-    constant FLAG_Z    :    integer := 1;
-    constant FLAG_C    :    integer := 0;
     
     -- Utility/readability
     constant ZEROS     	:    std_logic_vector(NUM_BITS-1 downto 0) := 

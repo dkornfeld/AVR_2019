@@ -9,14 +9,38 @@
 -- Revision History:
 --      01/24/19    David Kornfeld      Initial Revision
 --      01/31/19    David Kornfeld      Added constants for ControlUnit FSM
-
+--      02/08/19    David Kornfeld      Added constants for control in ControlUnit
+--      02/08/19    David Kornfeld      Moved constants for ALU
+----------------------------------------------------------------------------------------------------
 package AVR_2019_constants is
-    -- General Constants
+    -- General Constants ###########################################################################
     constant NUM_BITS               :   integer := 8;   -- Width of Data Data bus
     
-    -- ALU Constants
+    -- ProgMAU Constants ###########################################################################
+    constant PC_WIDTH               :   integer := 16;  -- Size of the PC (TBD)
+    constant PROG_OFFSET_SIZE       :   integer := 6;   -- Size of offsets to PC (TBD)
+    
+    -- DataMAU Constants ###########################################################################
+    constant DATA_OFFSET_SIZE       :   integer := 6;   -- Size of offsets to DataAB (TBD)
+    constant DATA_AB_SIZE           :   integer := 16;  -- Size of the DataAB
+    
+    -- ControlUnit Constants #######################################################################
+    constant INSTR_SIZE             :   integer := 16;  -- Size of instructions
+    constant MAX_INSTR_CLKS         :   integer := 3;   -- The maximum number of clocks
+                                                        -- for an instruction
+    
+    -- Register Constants ##########################################################################
+    constant NUM_GPRS               :   integer := 32;  -- Number of general purpose registers
+    constant NUM_IORS               :   integer := 64;  -- Number of IO registers
+    constant NUM_REGS               :   integer := 96;  -- Number of registers
     constant NUM_FLAGS              :   integer := 8;   -- Size of the SREG
 
+    constant ADDR_REG_SEL_X         :   std_logic_vector(1 downto 0) := "11"; -- Select X
+    constant ADDR_REG_SEL_Y         :   std_logic_vector(1 downto 0) := "10"; -- Select Y
+    constant ADDR_REG_SEL_Z         :   std_logic_vector(1 downto 0) := "01"; -- Select Z
+    constant ADDR_REG_SEL_SP        :   std_logic_vector(1 downto 0) := "00"; -- Select SP
+
+    -- ALU Constants ###############################################################################
     -- Logical FBLOCK constants
     constant ALU_FSR_ZEROS       :   std_logic_vector(3 downto 0) := "0000";
     constant ALU_FSR_A_NOR_B     :   std_logic_vector(3 downto 0) := "0001";
@@ -31,34 +55,19 @@ package AVR_2019_constants is
     constant ALU_FSR_A_OR_B      :   std_logic_vector(3 downto 0) := "1110";
     constant ALU_FSR_ONES        :   std_logic_vector(3 downto 0) := "1111";
 
-    -- non-combinational FBLOCK constants
+    -- Shifter/Rotator constants
     constant ALU_FSR_ROR         :   std_logic_vector(3 downto 0) := ALU_FSR_A_NAND_B;
     constant ALU_FSR_SWAP        :   std_logic_vector(3 downto 0) := "0010";
     constant ALU_FSR_ASR         :   std_logic_vector(3 downto 0) := ALU_FSR_NOT_B;
     constant ALU_FSR_LSR         :   std_logic_vector(3 downto 0) := ALU_FSR_A_XOR_B;
 
-    
-    -- ProgMAU Constants
-    constant PC_WIDTH               :   integer := 16;  -- Size of the PC (TBD)
-    constant PROG_OFFSET_SIZE       :   integer := 6;   -- Size of offsets to PC (TBD)
-    
-    -- DataMAU Constants
-    constant DATA_OFFSET_SIZE       :   integer := 6;   -- Size of offsets to DataAB (TBD)
-    constant DATA_AB_SIZE           :   integer := 16;  -- Size of the DataAB
-    
-    -- ControlUnit Constants
-    constant INSTR_SIZE             :   integer := 16;  -- Size of instructions
-    constant MAX_INSTR_CLKS         :   integer := 3;   -- The maximum number of clocks
-                                                        -- for an instruction
-    
-    -- Registers Constants.
-    constant NUM_GPRS               :   integer := 32;  -- Number of general purpose registers
-    constant NUM_IORS               :   integer := 64;  -- Number of IO registers
-    constant NUM_REGS               :   integer := 96;  -- Number of registers
-
-    constant ADDR_REG_SEL_X         :   std_logic_vector(1 downto 0) := "11"; -- Select X
-    constant ADDR_REG_SEL_Y         :   std_logic_vector(1 downto 0) := "10"; -- Select Y
-    constant ADDR_REG_SEL_Z         :   std_logic_vector(1 downto 0) := "01"; -- Select Z
-    constant ADDR_REG_SEL_SP        :   std_logic_vector(1 downto 0) := "00"; -- Select SP
+    -- Constants for Flags array readability
+    constant FLAG_T    :    integer := 6;
+    constant FLAG_H    :    integer := 5;
+    constant FLAG_S    :    integer := 4;
+    constant FLAG_V    :    integer := 3;
+    constant FLAG_N    :    integer := 2;
+    constant FLAG_Z    :    integer := 1;
+    constant FLAG_C    :    integer := 0;
 
 end package;

@@ -28,10 +28,11 @@
 -- Outputs: (Control Signals)
 --        DataRd               (std_logic)                          - Read data
 --        DataWr               (std_logic)                          - Write data
---        IOSel                (std_logic)                          - Read/Write from IO space
+--        IOSel                (std_logic)                          - For in/out instructions
 --        RegInSel             (std_logic)                          - Controls input to RegArray
 --        OPBInSel             (std_logic)                          - Controls Mux into ALU B Op
---        DBSel                (std_logic_vector(1 downto 0))       - Controls output to Data DB
+--        DBSel                (std_logic)                          - Controls output to Data DB
+--        DBEnableOutput       (std_logic)                          - If '0', tri-states the DB out
 --
 --        RegArray Control Signals: ################################################################
 --        RegASel              (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Register A Select lines
@@ -84,47 +85,49 @@
 --      01/31/19    Bobby Abrahamson    Integrated register unit
 --      02/02/19    Bobby Abrahamson    Added flag masks as control outputs
 --      02/04/19    David Kornfeld      Updated documentation
---          
------------------------------------------------------------------------------------------
+--      02/07/19    Bobby Abrahamson    Added constants for ALU controls and LD/ST instructions
+--      02/08/19    David Kornfeld      Updated documentation and fixed glitches in LD/ST
+--      02/08/19    David Kornfeld      Removed generics
+--      02/08/19    David Kornfeld      Added immediate data routing
+----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.AVR_2019_constants.all;
 use work.opcodes.all;
------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
 entity ControlUnit is
-    generic (
-        NUM_BITS            :    integer    := NUM_BITS;
-        INSTR_SIZE          :    integer    := INSTR_SIZE;
-        DATA_OFFSET_SIZE    :    integer    := DATA_OFFSET_SIZE;
-        PROG_OFFSET_SIZE    :    integer    := PROG_OFFSET_SIZE
-    );
     port         (
         -- FOR TESTING ONLY
         IR                  :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
-    
+
+        -- Inputs
         clock               :    in     std_logic;
         SREG                :    in     std_logic_vector(NUM_FLAGS-1 downto 0);
+        DataAB              :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0);
         ProgDB              :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
+        -- General Control Signals
         DataRd              :    out    std_logic;
         DataWr              :    out    std_logic;
         IOSel               :    out    std_logic;
         RegInSel            :    out    std_logic;
         OPBInSel            :    out    std_logic;
-        DBSel               :    out    std_logic_vector(1 downto 0);
-        -- RegArray
-        RegASel             :    out    std_logic_vector(6 downto 0);
-        RegBSel             :    out    std_logic_vector(6 downto 0);
-        RegWrSel            :    out    std_logic_vector(6 downto 0);
-        RegWr               :    out    std_logic;
-        AddrRegIn           :    out    std_logic_vector(2*NUM_BITS-1 downto 0);
-        AddrRegSel          :    out    std_logic_vector(1 downto 0);
-        AddrRegWr           :    out    std_logic;
-        RegDataOutSel       :    out    std_logic;
-        SFlag               :    out    std_logic;
-        FlagMask            :    out    std_logic_vector(NUM_FLAGS-1 downto 0);
-        -- ALU
+        DBSel               :    out    std_logic; -- Not used this week
+        DBEnableOutput      :    out    std_logic;
+        -- Raw values
         IR_Immediate        :    out    std_logic_vector(NUM_BITS-1 downto 0);
+        IR_Offset           :    out    std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
+        -- RegArray
+        RegWr               :    out    std_logic;                      
+        RegWrSel            :    out    std_logic_vector(6 downto 0);      
+        RegASel             :    out    std_logic_vector(6 downto 0);   
+        RegBSel             :    out    std_logic_vector(6 downto 0);   
+        SFlag               :    out    std_logic;                        
+        FlagMask            :    out    std_logic_vector(NUM_BITS-1 downto 0); 
+        NewFlags            :    out    std_logic_vector(NUM_FLAGS-2 downto 0); 
+        AddrRegSel          :    out    std_logic_vector(1 downto 0);       
+        AddrRegWr           :    out    std_logic;             
+        -- ALU
         N_AddMask           :    out    std_logic;
         FSRControl          :    out    std_logic_vector(3 downto 0);
         Subtract            :    out    std_logic;
@@ -142,10 +145,8 @@ entity ControlUnit is
         -- DMAU
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
-        IR_Offset           :    out    std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
         PrePostSel          :    out    std_logic;
-        OutputImmediate     :    out    std_logic;
-        AddrData            :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0)
+        OutputImmediate     :    out    std_logic
     );
 end ControlUnit;
 -----------------------------------------------------------------------------------------
@@ -170,9 +171,14 @@ architecture data_flow of ControlUnit is
     signal reg_index : std_logic_vector(6 downto 0); -- Index of register access via load/store
 begin
 
-    reg_access_enable <= '1' when (to_integer(unsigned(AddrData)) < NUM_REGS) else '0';
+    -- Useful signals for memory-mapped access of registers. 
+    reg_access_enable <= '1' when (to_integer(unsigned(DataAB)) < NUM_REGS) else '0';
+    reg_index <= DataAB(6 downto 0);
 
-    reg_index <= AddrData(6 downto 0);
+    -- Immediate 8-bit values from instruction get pulled out this way
+    IR_Immediate <= IR(11 downto 8) & IR(3 downto 0);
+    -- And offsets get pulled out this way
+    IR_Offset <= IR(13) & IR(11 downto 10) & IR(2 downto 0);
     
     -- Instruction cycle counter logic
     process(clock)
@@ -189,47 +195,41 @@ begin
     end process;
     
     -- Instruction decoding
-    process(IR, instr_cycle, ProgDB, AddrData)
-    begin
-        -- Default, can assume that register selects follow Rd, Rr scheme from instr set
-        RegASel <= "00" & IR(8 downto 4);
-        RegBSel <= "00" & IR(9) & IR(3 downto 0);
-        RegWrSel <= "00" & IR (8 downto 4);
-        
-        -- Default, assume a one-clock instruction
-        reset_instr_counter <= '1';
-        
-        -- Default, always use lower 3 bits to determine which bit in byte to alter with
-        -- set/clear/T flag
-        TSCBitSelect        <= IR(2 downto 0);
-
-        -- Read immediate from instruction
-        IR_Immediate <= IR(11 downto 8) & IR(3 downto 0);
-
-        -- By default, don't output immediate via DataMAU
-        OutputImmediate <= '0';
-        
-        -- SREG output defaults
-        SFlag <= '0';
-
-        -- By default, don't write to address register.
-        AddrRegWr <= '0';
-        RegDataOutSel <= '0';
-
-        -- By default, neither reading nor writing (active low)
-        DataRd <= '1';
+    process(IR, instr_cycle, ProgDB, DataAB)
+    begin        
+        -- Default General Controls
+        reset_instr_counter <= '1'; -- Assume instruction is 1 clock
+        DataRd <= '1';              -- Neither read nor write (active low)
         DataWr <= '1';
+        DBOutputEnable <= '1'       -- Assume we can write to the data DB
+        OPBInSel <= '0'             -- Assume we're taking register B output most of the time
+
+        -- Default Register Controls
+        RegASel <= "00" & IR(8 downto 4);           -- Assume that register selects 
+        RegBSel <= "00" & IR(9) & IR(3 downto 0);   -- follow Rd, Rr scheme from instr set
+        RegWr   <= '1';                             -- Assume we're writing
+        RegWrSel<= "00" & IR (8 downto 4);
+        SFlag   <= '0';                             -- By default, don't directly mess with the 
+                                                    -- SREG (TODO utilize memory-mapped IO space 
+                                                    -- for this. Don't grade this, Fabio)
+        AddrRegWr <= '0';                           -- By default, don't write to address register.
+
+        -- Default ALU Controls
+        TSCBitSelect <= IR(2 downto 0);             -- Always use lower 3 bits to determine 
+                                                    -- which bit in byte to alter with 
+                                                    -- set/clear/T flag
+
 
         -- Default DataMAU signals
-        IR_Offset <= IR(13) & IR(11 downto 10) & IR(2 downto 0);
-        N_OffsetMask <= '0';
-        N_Inc <= '0';
-        PrePostSel <= '0';
+        N_OffsetMask <= '0';    -- Mask the offset
+        N_Inc <= '0';           -- Leave on Increment
+        PrePostSel <= '0';      -- Select Pre
+        OutputImmediate <= '0'; -- Don't output immediately from ProgDB
         
         if std_match(IR, OpADC) then
             -- ALU
             N_AddMask       <= '1';             -- Adding normally
-            FSRControl      <= ALU_FSR_B;          -- B
+            FSRControl      <= ALU_FSR_B;       -- B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "10";            -- Use carry flag
             ALUResultSel    <= '0';             -- Adder
@@ -242,7 +242,7 @@ begin
         if std_match(IR, OpADD) then
             -- ALU
             N_AddMask       <= '1';             -- Adding normally
-            FSRControl      <= ALU_FSR_B;          -- B
+            FSRControl      <= ALU_FSR_B;       -- B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No initial carry
             ALUResultSel    <= '0';             -- Adder
@@ -262,6 +262,9 @@ begin
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
 
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
+
             -- Force top two bits of immediate to 0.
             IR_Immediate(NUM_BITS-1 downto NUM_BITS-2) <= "00";
             
@@ -275,20 +278,20 @@ begin
             reset_instr_counter <= instr_cycle(1);
             
             -- Now set the cycle-dependent controls
-            if instr_cycle(0) = '1' then        -- 1/2, ADD B
-                 FSRControl         <= ALU_FSR_B;  -- B
-                 CarryInControl     <= "00";    -- No initial carry
+            if instr_cycle(0) = '1' then                -- 1/2, ADD B
+                 FSRControl         <= ALU_FSR_B;       -- B
+                 CarryInControl     <= "00";            -- No initial carry
             end if;
-            if instr_cycle(1) = '1' then        -- 2/2, ADC to 0
-                 FSRControl         <= ALU_FSR_ZEROS;  -- 0x00 (0)
-                 CarryInControl     <= "10";    -- Use carry flag
+            if instr_cycle(1) = '1' then                -- 2/2, ADC to 0
+                 FSRControl         <= ALU_FSR_ZEROS;   -- 0x00 (0)
+                 CarryInControl     <= "10";            -- Use carry flag
             end if;
         end if;
         
         if std_match(IR, OpAND) then
             -- ALU
             N_AddMask       <= '0';             -- Doing logical ops
-            FSRControl      <= ALU_FSR_A_AND_B;          -- A AND B
+            FSRControl      <= ALU_FSR_A_AND_B; -- A AND B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No initial carry
             ALUResultSel    <= '0';             -- Adder
@@ -301,7 +304,7 @@ begin
         if std_match(IR, OpANDI) then
             -- ALU
             N_AddMask       <= '0';             -- Doing logical ops
-            FSRControl      <= ALU_FSR_A_AND_B;          -- A AND B
+            FSRControl      <= ALU_FSR_A_AND_B; -- A AND B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No initial carry
             ALUResultSel    <= '0';             -- Adder
@@ -309,12 +312,15 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZNVS;      -- Z, N, V, S
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
         end if;
         
         if std_match(IR, OpASR) then
             -- ALU
             N_AddMask       <= '0';             -- Don't care
-            FSRControl      <= ALU_FSR_ASR;  -- Doing ASR
+            FSRControl      <= ALU_FSR_ASR;     -- Doing ASR
             Subtract        <= '0';             -- Don't care
             CarryInControl  <= "00";            -- Don't care
             ALUResultSel    <= '1';             -- Shifter
@@ -327,7 +333,7 @@ begin
         if std_match(IR, OpBCLR) then
             -- ALU
             N_AddMask       <= '0';             -- Mask A op
-            FSRControl      <= ALU_FSR_A;    -- A, passthrough
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry influence
             ALUResultSel    <= '0';             -- Adder
@@ -343,7 +349,7 @@ begin
         if std_match(IR, OpBLD) then
             -- ALU
             N_AddMask       <= '0';             -- Hide Op A
-            FSRControl      <= ALU_FSR_A;          -- A, passthrough
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry in
             ALUResultSel    <= '0';             -- Adder
@@ -356,7 +362,7 @@ begin
           if std_match(IR, OpBSET) then
             -- ALU
             N_AddMask       <= '0';             -- Mask A op
-            FSRControl      <= ALU_FSR_A;          -- A, passthrough
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry influence
             ALUResultSel    <= '0';             -- Adder
@@ -372,7 +378,7 @@ begin
         if std_match(IR, OpBST) then
             -- ALU
             N_AddMask       <= '0';             -- Mask A op
-            FSRControl      <= ALU_FSR_A;          -- A, passthrough
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry influence
             ALUResultSel    <= '0';             -- Adder
@@ -385,7 +391,7 @@ begin
         if std_match(IR, OpCOM) then
             -- ALU
             N_AddMask       <= '0';             -- Logical operation
-            FSRControl      <= ALU_FSR_NOT_A;          -- not A
+            FSRControl      <= ALU_FSR_NOT_A;   -- not A
             Subtract        <= '1';             -- Forces Carry=1
             CarryInControl  <= "00";            -- no carry
             ALUResultSel    <= '0';             -- Adder
@@ -411,7 +417,7 @@ begin
         if std_match(IR, OpCPC) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_NOT_B;          -- not B
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
             CarryInControl  <= "11";            -- Use carry bar
             ALUResultSel    <= '0';             -- Adder
@@ -424,7 +430,7 @@ begin
         if std_match(IR, OpCPI) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_NOT_B;          -- not B
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
             CarryInControl  <= "01";            -- No borrow in
             ALUResultSel    <= '0';             -- Adder
@@ -432,12 +438,15 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
         end if;
         
         if std_match(IR, OpDEC) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_ONES;          -- 11111111 (-1)
+            FSRControl      <= ALU_FSR_ONES;    -- 11111111 (-1)
             Subtract        <= '0';             -- Adding (-1)
             CarryInControl  <= "00";            -- No carry influence
             ALUResultSel    <= '0';             -- Adder
@@ -450,7 +459,7 @@ begin
         if std_match(IR, OpEOR) then
             -- ALU
             N_AddMask       <= '0';             -- Logical
-            FSRControl      <= ALU_FSR_A_XOR_B;          -- A xor B
+            FSRControl      <= ALU_FSR_A_XOR_B; -- A xor B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry in
             ALUResultSel    <= '0';             -- Adder
@@ -463,7 +472,7 @@ begin
         if std_match(IR, OpINC) then
             -- ALU
             N_AddMask       <= '1';             -- Adding normally
-            FSRControl      <= ALU_FSR_ZEROS;          -- 00000000 (0)
+            FSRControl      <= ALU_FSR_ZEROS;   -- 00000000 (0)
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "01";            -- Add one
             ALUResultSel    <= '0';             -- Adder
@@ -476,7 +485,7 @@ begin
         if std_match(IR, OpLSR) then
             -- ALU
             N_AddMask       <= '0';             -- Don't care
-            FSRControl      <= ALU_FSR_LSR;  -- LSR
+            FSRControl      <= ALU_FSR_LSR;     -- LSR
             Subtract        <= '0';             -- Don't care
             CarryInControl  <= "00";            -- Don't care
             ALUResultSel    <= '1';             -- Shifter
@@ -489,7 +498,7 @@ begin
         if std_match(IR, OpNEG) then
             -- ALU
             N_AddMask       <= '0';             -- Unary operation
-            FSRControl      <= ALU_FSR_NOT_A;          -- not A
+            FSRControl      <= ALU_FSR_NOT_A;   -- not A
             Subtract        <= '1';             -- Act like subtract
             CarryInControl  <= "01";            -- Add one
             ALUResultSel    <= '0';             -- Adder
@@ -502,7 +511,7 @@ begin
         if std_match(IR, OpOR) then
             -- ALU
             N_AddMask       <= '0';             -- Logical
-            FSRControl      <= ALU_FSR_A_OR_B;          -- A or B
+            FSRControl      <= ALU_FSR_A_OR_B;  -- A or B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry in
             ALUResultSel    <= '0';             -- Adder
@@ -515,7 +524,7 @@ begin
         if std_match(IR, OpORI) then
             -- ALU
             N_AddMask       <= '0';             -- Logical
-            FSRControl      <= ALU_FSR_A_OR_B;          -- A or B
+            FSRControl      <= ALU_FSR_A_OR_B;  -- A or B
             Subtract        <= '0';             -- Not subtracting
             CarryInControl  <= "00";            -- No carry in
             ALUResultSel    <= '0';             -- Adder
@@ -523,12 +532,15 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZNVS;      -- Z, N, V, S
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
         end if;
         
         if std_match(IR, OpROR) then
             -- ALU
             N_AddMask       <= '0';             -- Don't care
-            FSRControl      <= ALU_FSR_ROR;          -- ROR
+            FSRControl      <= ALU_FSR_ROR;     -- ROR
             Subtract        <= '0';             -- Don't care
             CarryInControl  <= "00";            -- Shifter
             ALUResultSel    <= '1';             -- Shifter
@@ -541,7 +553,7 @@ begin
         if std_match(IR, OpSBC) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_NOT_B;          -- not B
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
             CarryInControl  <= "11";            -- Use carry bar
             ALUResultSel    <= '0';             -- Adder
@@ -554,7 +566,7 @@ begin
         if std_match(IR, OpSBCI) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_NOT_B;          -- not B
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
             CarryInControl  <= "11";            -- Use carry bar
             ALUResultSel    <= '0';             -- Adder
@@ -562,6 +574,9 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
         end if;
         
         if std_match(IR, OpSBIW) then
@@ -573,6 +588,9 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
 
             -- Force top two bits of immediate to 0.
             IR_Immediate(NUM_BITS-1 downto NUM_BITS-2) <= "00";
@@ -587,20 +605,20 @@ begin
             reset_instr_counter <= instr_cycle(1);
             
             -- Now set the cycle-dependent controls
-            if instr_cycle(0) = '1' then    -- 1/2, SUB B
-                FSRControl      <= ALU_FSR_NOT_B;  -- not B
-                CarryInControl  <= "01";    -- No initial borrow
+            if instr_cycle(0) = '1' then            -- 1/2, SUB B
+                FSRControl      <= ALU_FSR_NOT_B;   -- not B
+                CarryInControl  <= "01";            -- No initial borrow
             end if;
-            if instr_cycle(1) = '1' then    -- 2/2, SBC w/ 0
-                FSRControl      <= ALU_FSR_ONES;  -- 0xFF SBC 0
-                CarryInControl  <= "11";    -- Use carry bar
+            if instr_cycle(1) = '1' then            -- 2/2, SBC w/ 0
+                FSRControl      <= ALU_FSR_ONES;    -- 0xFF SBC 0
+                CarryInControl  <= "11";            -- Use carry bar
             end if;
         end if;
         
         if std_match(IR, OpSUB) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_NOT_B;          -- not B
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
             CarryInControl  <= "01";            -- No borrow in
             ALUResultSel    <= '0';             -- Adder
@@ -613,7 +631,7 @@ begin
         if std_match(IR, OpSUBI) then
             -- ALU
             N_AddMask       <= '1';             -- Subtracting normally
-            FSRControl      <= ALU_FSR_NOT_B;          -- not B
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
             CarryInControl  <= "01";            -- No borrow in
             ALUResultSel    <= '0';             -- Adder
@@ -621,12 +639,15 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
         end if;
         
         if std_match(IR, OpSWAP) then
             -- ALU
             N_AddMask       <= '0';             -- Don't care
-            FSRControl      <= ALU_FSR_SWAP; -- SWAP
+            FSRControl      <= ALU_FSR_SWAP;    -- SWAP
             Subtract        <= '0';             -- Don't care
             CarryInControl  <= "00";            -- Don't care
             ALUResultSel    <= '1';             -- Shifter
@@ -637,33 +658,33 @@ begin
         end if;
 
         if std_match(IR, OpMOV) then
-            N_AddMask       <= '1';             -- Adding normally
+            N_AddMask       <= '0';             -- Mask out A
+            FSRControl      <= ALU_FSR_B;       -- B passes through
             Subtract        <= '0';             -- Not subtracting
             ALUResultSel    <= '0';             -- Adder
+            CarryInControl  <= "00";            -- No Carry Influence
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
-            FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
-            FSRControl         <= ALU_FSR_B;  -- B
-            CarryInControl     <= "00";    -- No initial carry
-            
-            -- Override RegB.
-            RegBSel <= "00" & IR(9) & IR(3 downto 0);
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
         end if;
 
         if std_match(IR, OpLDI) then
-            N_AddMask       <= '1';             -- Adding normally
+            N_AddMask       <= '0';             -- Mask out A op
+            FSRControl      <= ALU_FSR_B;       -- B passes through
             Subtract        <= '0';             -- Not subtracting
             ALUResultSel    <= '0';             -- Adder
+            CarryInControl  <= "00";            -- No Carry influence
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
-            FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
-            FSRControl         <= ALU_FSR_B;  -- B
-            CarryInControl     <= "00";    -- No initial carry
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
             
-            -- Only write to upper 16 registers
-            RegWrSel    <= "001" & IR(7 downto 4);   
+            -- Only write to upper 16 registers. Only have to overwrite bit 8 to '1'
+            RegWrSel        <= "001" & IR(7 downto 4);   
+
+            -- Immediate comes in through operand B
+            OPBInSel        <= '1';
         end if;
 
         if (std_match(IR, OpLDX) or std_match(IR, OpLDXI) or std_match(IR, OpLDXD) or
@@ -725,6 +746,7 @@ begin
                 if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
+                    DBOutputEnable <= IR(9); -- Give up control of the DB if reading
                 end if;
 
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
@@ -789,6 +811,7 @@ begin
                 if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
+                    DBOutputEnable <= IR(9); -- Give up control of the DB if reading
                 end if;
 
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
@@ -829,15 +852,13 @@ begin
                 end if;
             end if;
 
-            -- Clock dependent seletions
-            if instr_cycle(1) = '1' then
-                -- Nothing to do on cycle 1, immediate already output to ProgDB and latched
-            end if;
+            -- Clock dependent selections
             if instr_cycle(2) = '1' then
                 -- Output read/write if touching memory
                 if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
+                    DBOutputEnable <= IR(9); -- Give up control of the DB if reading
                 end if;
 
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then

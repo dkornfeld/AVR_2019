@@ -91,7 +91,7 @@ begin
     -- Latch the ProgDB into a register to hold it for LDS/STS #####################################
     process(clock)
     begin
-        if rising_edge(clock) then
+        if falling_edge(clock) then -- Give the most time we possibly can
             Latched_Immediate_Addr <= Immediate_Addr;
         end if;
     end process;

@@ -700,6 +700,15 @@ begin
                                     std_match(IR, OpSTYI) or std_match(IR, OpSTYD) or
                                     std_match(IR, OpSTZI) or std_match(IR, OpSTZD) or
             std_match(IR, OpPUSH) or std_match(IR, OpPOP)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= "00";            -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
 
             -- Don't update a register.
             RegWr <='0';
@@ -765,6 +774,15 @@ begin
 
         if (std_match(IR, OpLDDY) or std_match(IR, OpLDDZ) or 
             std_match(IR, OpSTDY) or std_match(IR, OpSTDZ)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= "00";            -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
 
             -- Don't update a register.
             RegWr <='0';
@@ -816,6 +834,15 @@ begin
         end if;
 
         if (std_match(IR, OpLDS) or std_match(IR, OpSTS)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= "00";            -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
 
             -- Don't update a register.
             RegWr <='0';
@@ -833,7 +860,7 @@ begin
                 end if;
             else                -- Store
                 if progdb_reg_sel = '1' then
-                    -- Load from registers
+                    -- Store to registers
                     RegWrSel <= reg_index;
                 else
                     -- Write register into datadb

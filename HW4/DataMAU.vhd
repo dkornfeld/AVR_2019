@@ -18,6 +18,7 @@
 --      DATA_AB_SIZE        (integer range 2 to Infinity) - Width of the Data Address Bus
 --
 -- Inputs:
+--      clock           (std_logic)                                         - System clock
 --      IR_Offset       (std_logic_vector(DATA_OFFSET_SIZE-1 downto 0))     - Address offset input
 --      Immediate_Addr  (std_logic_vector(DATA_AB_SIZE-1 downto 0))         - Immediate address in
 --      InpAddrData     (std_logic_vector(2*NUM_BITS-1 downto 0))           - Input address reg
@@ -36,6 +37,7 @@
 --      01/24/19    David Kornfeld  Initial Revision
 --      02/05/19    David Kornfeld  Updated documentation and added input/output ports
 --      02/05/19    David Kornfeld  Finished first draft and got to compile
+--      02/07/19    David Kornfeld  Latched ProgDB input
 ----------------------------------------------------------------------------------------------------
 library  ieee;
 use ieee.numeric_std.all;
@@ -49,6 +51,7 @@ entity DataMAU is
         DATA_AB_SIZE        :   integer := DATA_AB_SIZE
     );
     port (
+        clock           :   in  std_logic;
         IR_Offset       :   in  std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
         Immediate_Addr  :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
         InpAddrData     :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
@@ -81,7 +84,18 @@ architecture data_flow of DataMAU is
     -- The computed address from offsets (not Immediates)
     signal ComputedAddress  :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
 
+    -- Latched version of the Immediate address for LDS/STS
+    signal Latched_Immediate_Addr   :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
+
 begin
+    -- Latch the ProgDB into a register to hold it for LDS/STS #####################################
+    process(clock)
+    begin
+        if rising_edge(clock) then
+            Latched_Immediate_Addr <= Immediate_Addr;
+        end if;
+    end process;
+
     -- Compute the pre-incremented/decremented value ###############################################
     IncDecSummand(0)        <= '1'; -- low bit is always 1, whether incrementing or decrementing
     IncDecSummandGenerate: for i in 1 to DATA_AB_SIZE-1 generate
@@ -129,8 +143,8 @@ begin
 
     -- Multiplex the output between the computed value and the immediate ###########################
     DataAddr                <=  ComputedAddress when OutputImmediate = '0' else
-                                Immediate_Addr; -- Only output directly from IR/ProgDB when
-                                                -- OutputImmediate = '1'
+                                Latched_Immediate_Addr; -- Only output value from ProgDB when
+                                                        -- OutputImmediate = '1'
 
     -- Output back to the address registers ########################################################
     NewAddrData             <=  PreIncremented;

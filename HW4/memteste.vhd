@@ -63,78 +63,90 @@ end  MEM_TEST;
 
 architecture data_flow of MEM_TEST is
     -- Intermediate signals between internal units
-    signal CarryFlag        :   std_logic;
-    signal TFlag            :   std_logic;
-    signal SFlag            :   std_logic;
-    signal FlagMask         :   std_logic_vector(NUM_FLAGS-1 downto 0);
-    signal SREG             :   std_logic_vector(7 downto 0);
-    signal ProgDB           :   std_logic_vector(INSTR_SIZE-1 downto 0);
-    signal NewFlags         :   std_logic_vector(6 downto 0);
-    signal N_AddMask        :   std_logic;
-    signal FSRControl       :   std_logic_vector(3 downto 0);
-    signal Subtract         :   std_logic;
-    signal CarryInControl   :   std_logic_vector(1 downto 0);
-    signal ALUResultSel     :   std_logic;
-    signal TSCBitSelect     :   std_logic_vector(2 downto 0);
-    signal TLoad            :   std_logic;
-    signal BitSetClear      :   std_logic;
-    signal SettingClearing  :   std_logic;
-    signal ALUResult        :   std_logic_vector(7 downto 0);
-    signal RegAOutput       :   std_logic_vector(7 downto 0);
-
-    -- Actual input to operand A of the ALU. Used for muxing below
-    signal OperandAIn       :   std_logic_vector(7 downto 0);
 
     -- Actual input to operand B of the ALU. Used for muxing below
     signal OperandBIn       :   std_logic_vector(7 downto 0);
 
-    -- Unused Signals
-    signal RegWr            :   std_logic;                              
-    signal RegWrSel         :   std_logic_vector(4 downto 0);           
-    signal RegASel          :   std_logic_vector(4 downto 0);           
-    signal RegBSel          :   std_logic_vector(4 downto 0);
 begin
 
     -- Connect specific flags to the SREG
     CarryFlag   <= SREG(0);
     TFlag       <= SREG(6);
 
-    -- Need to multiplex this, as normally Op A isn't open for input
-    OperandAIn  <= OperandA when SFlag = '0' else
-                   RegAOutput;
-
-    OperandBIn <= OperandB when 
+    -- Connect register to ALU
+    OperandAIn  <=  RegAOutput;
+    OperandBIn  <=  RegBOutput when OPBInSel = '0' else
+                    IR_Immediate;
 
     -- Map our Control Unit
     ControlUnit : entity work.ControlUnit
     port map(
         -- Inputs
-        IR              => IR,
-        clock           => clock,
-        SREG            => SREG,
-        ProgDB          => ProgDB,
 
         -- ALU Control Signals
-        N_AddMask       => N_AddMask,
-        FSRControl      => FSRControl,
-        Subtract        => Subtract,
-        CarryInControl  => CarryInControl,
-        ALUResultSel    => ALUResultSel,
-        TSCBitSelect    => TSCBitSelect,
-        TLoad           => TLoad,
-        BitSetClear     => BitSetClear,
-        SettingClearing => SettingClearing,
 
         -- Register Control Signals
-        SFlag       => SFlag,
-        FlagMask    => FlagMask
+
+        -- DMAU Control Signals
+        
     );
 
-    -- Map our Register array
+    -- Map our Register Array
+    ControlUnit : entity work.Registers
+    port map(
+        clock           => ,
+        RegWr           => ,
+        RegWrSel        => ,
+        RegASel         => ,
+        RegBSel         => ,
+        SFlag           => ,
+        FlagMask        => ,
+        NewFlags        => ,
+        AddrRegIn       => ,
+        AddrRegOut      => ,
+        AddrRegSel      => ,
+        AddrRegWr       => ,
+        DataDB          => ,
+        RegDataOutSel   => ,
+        reset           => ,
+        RegAOutput      => ,
+        RegBOutput      => ,
+        SREG            => 
+    );
 
     -- Map our DataMAU
+    ControlUnit : entity work.DataMAU
+    port map(
+        IR_Offset       => ,
+        Immediate_Addr  => ,
+        InpAddrData     => ,
+        N_Inc           => ,
+        N_OffsetMask    => ,
+        PrePostSel      => ,
+        OutputImmediate => ,
+        DataAddr        => ,
+        NewAddrData     => 
+    );
 
-    -- Map our ALU
+    -- Map our Control Unit
+    ControlUnit : entity work.ALU
+    port map(
+        OperandA        => ,
+        OperandB        => ,
+        CarryFlag       => ,
+        TFlag           => ,
+        N_AddMask       => ,
+        FSRControl      => ,
+        Subtract        => ,
+        CarryInControl  => ,
+        ALUResultSel    => ,
+        TSCBitSelect    => ,
+        TLoad           => ,
+        BitSetClear     => ,
+        SettingClearing => ,
+        Result          => ,
+        NewFlags        => 
+    );
 
 
 end data_flow;

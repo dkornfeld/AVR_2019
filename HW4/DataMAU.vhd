@@ -19,7 +19,7 @@
 --
 -- Inputs:
 --      IR_Offset       (std_logic_vector(DATA_OFFSET_SIZE-1 downto 0))     - Address offset input
---      IR_Immediate    (std_logic_vector(DATA_AB_SIZE-1 downto 0))         - Immediate address in
+--      Immediate_Addr  (std_logic_vector(DATA_AB_SIZE-1 downto 0))         - Immediate address in
 --      InpAddrData     (std_logic_vector(2*NUM_BITS-1 downto 0))           - Input address reg
 --      Control Signals: ###########################################################################
 --      N_Inc           (std_logic)                 - Active low increment select
@@ -129,7 +129,7 @@ begin
 
     -- Multiplex the output between the computed value and the immediate ###########################
     DataAddr                <=  ComputedAddress when OutputImmediate = '0' else
-                                IR_Immediate;   -- Only output directly from IR/ProgDB when
+                                Immediate_Addr; -- Only output directly from IR/ProgDB when
                                                 -- OutputImmediate = '1'
 
     -- Output back to the address registers ########################################################

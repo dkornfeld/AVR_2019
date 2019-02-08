@@ -124,6 +124,7 @@ entity ControlUnit is
         SFlag               :    out    std_logic;
         FlagMask            :    out    std_logic_vector(NUM_FLAGS-1 downto 0);
         -- ALU
+        IR_Immediate        :    out    std_logic_vector(NUM_BITS-1 downto 0);
         N_AddMask           :    out    std_logic;
         FSRControl          :    out    std_logic_vector(3 downto 0);
         Subtract            :    out    std_logic;
@@ -141,10 +142,11 @@ entity ControlUnit is
         -- DMAU
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
-        IR_Offset           :    out  std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
+        IR_Offset           :    out    std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
+        Immediate_Addr      :    out    std_logic_vector(DATA_AB_SIZE-1 downto 0);
         PrePostSel          :    out    std_logic;
         OutputImmediate     :    out    std_logic;
-        AddrData            :    in    std_logic_vector(2*NUM_BITS-1 downto 0)
+        AddrData            :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0)
     );
 end ControlUnit;
 -----------------------------------------------------------------------------------------
@@ -165,10 +167,10 @@ architecture data_flow of ControlUnit is
     signal reset_instr_counter    :    std_logic;    -- Active high reset
 
     -- Signals for data memory unit
-    signal progdb_store    :   std_logic_vector(2*NUM_BITS-1 downto 0);
+    signal progdb_store    :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
     signal progdb_reg_sel  :   std_logic := '0';
 
-    signal data_addr_store :   std_logic_vector(2*NUM_BITS-1 downto 0);
+    signal data_addr_store :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
     signal data_addr_reg_sel : std_logic := '0';
 
     signal reg_index    : std_logic_vector(6 downto 0);
@@ -199,6 +201,8 @@ begin
 
     reg_index <= progdb_store(6 downto 0) when (std_match(IR, OpLDS) or std_match(IR, OpSTS)) 
                  else data_addr_store(6 downto 0);
+
+    Immediate_Addr <= progdb_store;
     
     -- Instruction cycle counter logic
     process(clock)
@@ -215,7 +219,7 @@ begin
     end process;
     
     -- Instruction decoding
-    process(IR, instr_cycle)
+    process(IR, instr_cycle, ProgDB, AddrData)
     begin
         -- Default, can assume that register selects follow Rd, Rr scheme from instr set
         RegASel <= "00" & IR(8 downto 4);
@@ -228,13 +232,15 @@ begin
         -- Default, always use lower 3 bits to determine which bit in byte to alter with
         -- set/clear/T flag
         TSCBitSelect        <= IR(2 downto 0);
+
+        -- Read immediate from instruction
+        IR_Immediate <= IR(11 downto 8) & IR(3 downto 0);
         
         -- SREG output defaults
         SFlag <= '0';
 
         -- By default, don't write to address register.
         AddrRegWr <= '0';
-        AddrRegWrSel <= "00";
         RegDataOutSel <= '0';
 
         -- By default, neither reading nor writing (active low)
@@ -282,6 +288,9 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
+
+            -- Force top two bits of immediate to 0.
+            IR_Immediate(NUM_BITS-1 downto NUM_BITS-2) <= "00";
             
             -- The even registers for A and B are encoded in
             -- bits 5 and 4 and can easily be turned into
@@ -591,6 +600,9 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
+
+            -- Force top two bits of immediate to 0.
+            IR_Immediate(NUM_BITS-1 downto NUM_BITS-2) <= "00";
             
             -- The even registers for A and B are encoded in
             -- bits 5 and 4 and can easily be turned into

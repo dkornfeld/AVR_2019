@@ -50,7 +50,7 @@ entity DataMAU is
     );
     port (
         IR_Offset       :   in  std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
-        IR_Immediate    :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
+        Immediate_Addr  :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
         InpAddrData     :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
         N_Inc           :   in  std_logic;
         N_OffsetMask    :   in  std_logic;

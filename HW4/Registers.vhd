@@ -95,11 +95,11 @@ architecture data_flow of Registers is
                                                                 -- will be useful for future assignments
 begin
     -- Handle RegA
-    RegA <= RegData(conv_integer(RegASel)) when (conv_integer(RegASel) < NUM_GPRS) else (others => 'X');
+    RegA <= RegData(conv_integer(RegASel));
     RegAOutput <= RegA when SFlag = '0' else RegData(SREG_IDX);
     
     -- Handle RegB
-    RegB <= RegData(conv_integer(RegBSel)) when (conv_integer(RegBSel) < NUM_GPRS) else (others => 'X');
+    RegB <= RegData(conv_integer(RegBSel));
     RegBOutput <= RegB;
     
     -- Output SREG

@@ -143,7 +143,6 @@ entity ControlUnit is
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
         IR_Offset           :    out    std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
-        Immediate_Addr      :    out    std_logic_vector(DATA_AB_SIZE-1 downto 0);
         PrePostSel          :    out    std_logic;
         OutputImmediate     :    out    std_logic;
         AddrData            :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0)
@@ -166,43 +165,14 @@ architecture data_flow of ControlUnit is
                                                                             -- counter
     signal reset_instr_counter    :    std_logic;    -- Active high reset
 
-    -- Signals for data memory unit
-    signal progdb_store    :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
-    signal progdb_reg_sel  :   std_logic := '0';
-
-    signal data_addr_store :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
-    signal data_addr_reg_sel : std_logic := '0';
-
-    signal reg_index    : std_logic_vector(6 downto 0);
+    -- DataMAU signals (reg vs mem)
+    signal reg_access_enable : std_logic; -- 1 when load/store accesses registers instead of memory
+    signal reg_index : std_logic_vector(6 downto 0); -- Index of register access via load/store
 begin
 
-    -- Update latched values
-    if instr_cycle(0) = '1' then
-        data_addr_store <= AddrData when (clock = '0') else data_addr_store;
-        data_addr_reg_sel <= '1' when (to_integer(unsigned(data_addr_store)) < NUM_REGS) 
-                              else '0';
-    else
-        data_addr_store <= data_addr_store;
-        data_addr_reg_sel <= data_addr_reg_sel;
-    end if;
+    reg_access_enable <= '1' when (to_integer(unsigned(AddrData)) < NUM_REGS) else '0';
 
-    if instr_cycle(1) = '1' then
-        progdb_store <= ProgDB when (std_match(IR, OpLDS) or std_match(IR, OpSTS)) else progdb_store;
-    else
-        progdb_store <= progdb_store;
-    end if;
-
-    progdb_reg_sel <= '1' when (to_integer(unsigned(progdb_store)) < NUM_REGS) 
-                       else '0';
-
-    data_addr_store <= AddrData when (instr_cycle(0) = '1' and clock = '0') 
-                       else data_addr_store;
-    data_addr_reg_sel <= '0' when
-
-    reg_index <= progdb_store(6 downto 0) when (std_match(IR, OpLDS) or std_match(IR, OpSTS)) 
-                 else data_addr_store(6 downto 0);
-
-    Immediate_Addr <= progdb_store;
+    reg_index <= AddrData(6 downto 0);
     
     -- Instruction cycle counter logic
     process(clock)
@@ -235,6 +205,9 @@ begin
 
         -- Read immediate from instruction
         IR_Immediate <= IR(11 downto 8) & IR(3 downto 0);
+
+        -- By default, don't output immediate via DataMAU
+        OutputImmediate <= '0';
         
         -- SREG output defaults
         SFlag <= '0';
@@ -708,26 +681,23 @@ begin
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
-            BitSetClear     <= '0';             -- to 0
+            BitSetClear     <= '0';             -- don't care
 
-            -- Don't update a register.
-            RegWr <='0';
+            -- Don't update a register by default.
+            RegWr <= '0';
 
             -- Take two cycles
             reset_instr_counter <= instr_cycle(1);
 
             if IR(9) = '0' then -- Load
-                if data_addr_reg_sel = '1' then
+                if reg_access_enable = '1' then
                     -- Load from registers
                     RegASel <= reg_index;
                 end if;
             else                -- Store
-                if data_addr_reg_sel = '1' then
+                if reg_access_enable = '1' then
                     -- Load from registers
                     RegWrSel <= reg_index;
-                else
-                    -- Output from registers to DataDB
-                    RegDataOutSel <= '1'; 
                 end if;
             end if;
 
@@ -738,7 +708,7 @@ begin
                 AddrRegSel <= IR (3 downto 2);
             end if;
 
-            -- Clock dependent seletions
+            -- Clock dependent selections
             if instr_cycle(0) = '1' then
                 if IR(1 downto 0) = "10" then -- pre-decrement
                     PrePostSel <= '1';
@@ -752,12 +722,12 @@ begin
             end if;
             if instr_cycle(1) = '1' then
                 -- Output read/write if touching memory
-                if data_addr_reg_sel = '0' then
+                if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
                 end if;
 
-                if (IR(9) = '0') or ((IR(9) = '1') and data_addr_reg_sel = '1') then
+                if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
                     RegWr <= '1';
                 end if;
 
@@ -784,8 +754,8 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- to 0
 
-            -- Don't update a register.
-            RegWr <='0';
+            -- Don't update a register by default.
+            RegWr <= '0';
 
             -- Take two cycles
             reset_instr_counter <= instr_cycle(1);
@@ -794,17 +764,14 @@ begin
             N_OffsetMask <= '1';
 
             if IR(9) = '0' then -- Load
-                if data_addr_reg_sel = '1' then
+                if reg_access_enable = '1' then
                     -- Load from registers
                     RegASel <= reg_index; 
                 end if;
             else                -- Store
-                if data_addr_reg_sel = '1' then
+                if reg_access_enable = '1' then
                     -- Load from registers
                     RegWrSel <= reg_index;
-                else
-                    -- Write register into datadb
-                    RegDataOutSel <= '1';
                 end if;
             end if;
 
@@ -816,18 +783,15 @@ begin
                 AddrRegSel <= ADDR_REG_SEL_Z;
             end if;
 
-            -- Clock dependent seletions
-            if instr_cycle(0) = '1' then
-                -- Nothing to do on cycle 0
-            end if;
+            -- Clock dependent selections
             if instr_cycle(1) = '1' then
                 -- Output read/write if touching memory
-                if data_addr_reg_sel = '0' then
+                if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
                 end if;
 
-                if (IR(9) = '0') or (data_addr_reg_sel = '1') then
+                if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
                     RegWr <= '1';
                 end if;
             end if;
@@ -844,8 +808,8 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- to 0
 
-            -- Don't update a register.
-            RegWr <='0';
+            -- Don't update a register by default.
+            RegWr <= '0';
 
             -- Take three cycles
             reset_instr_counter <= instr_cycle(2);
@@ -854,35 +818,29 @@ begin
             OutputImmediate <= '1';
 
             if IR(9) = '0' then -- Load
-                if progdb_reg_sel = '1' then
+                if reg_access_enable = '1' then
                     -- Load from registers
                     RegASel <= reg_index;
                 end if;
             else                -- Store
-                if progdb_reg_sel = '1' then
+                if reg_access_enable = '1' then
                     -- Store to registers
                     RegWrSel <= reg_index;
-                else
-                    -- Write register into datadb
-                    RegDataOutSel <= '1';
                 end if;
             end if;
 
             -- Clock dependent seletions
-            if instr_cycle(0) = '1' then
-                -- Nothing to do on cycle 0, waiting for immediate
-            end if;
             if instr_cycle(1) = '1' then
                 -- Nothing to do on cycle 1, immediate already output to ProgDB and latched
             end if;
             if instr_cycle(2) = '1' then
                 -- Output read/write if touching memory
-                if progdb_reg_sel = '0' then
+                if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
                 end if;
 
-                if (IR(9) = '0') or (progdb_reg_sel = '1') then
+                if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
                     RegWr <= '1';
                 end if;
             end if;

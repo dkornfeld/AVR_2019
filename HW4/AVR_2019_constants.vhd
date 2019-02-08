@@ -12,6 +12,10 @@
 --      02/08/19    David Kornfeld      Added constants for control in ControlUnit
 --      02/08/19    David Kornfeld      Moved constants for ALU
 ----------------------------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 package AVR_2019_constants is
     -- General Constants ###########################################################################
     constant NUM_BITS               :   integer := 8;   -- Width of Data Data bus
@@ -39,6 +43,15 @@ package AVR_2019_constants is
     constant ADDR_REG_SEL_Y         :   std_logic_vector(1 downto 0) := "10"; -- Select Y
     constant ADDR_REG_SEL_Z         :   std_logic_vector(1 downto 0) := "01"; -- Select Z
     constant ADDR_REG_SEL_SP        :   std_logic_vector(1 downto 0) := "00"; -- Select SP
+
+    -- Constants useful for flag masks (1 indicates flag is changed)
+    constant FLAGS_ALL    : std_logic_vector(NUM_FLAGS-1 downto 0) := "01111111";
+    constant FLAGS_ZCNVSH : std_logic_vector(NUM_FLAGS-1 downto 0) := "00111111";
+    constant FLAGS_ZCNVS  : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011111";
+    constant FLAGS_ZNVS   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011110";
+    constant FLAGS_T      : std_logic_vector(NUM_FLAGS-1 downto 0) := "01000000";
+    constant FLAGS_C      : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000001";
+    constant FLAGS_NONE   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000000";
 
     -- ALU Constants ###############################################################################
     -- Logical FBLOCK constants

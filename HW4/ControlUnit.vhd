@@ -152,15 +152,6 @@ end ControlUnit;
 -----------------------------------------------------------------------------------------
 architecture data_flow of ControlUnit is
 
-    -- Constants useful for flag masks (1 indicates flag is changed)
-    constant FLAGS_ALL    : std_logic_vector(NUM_FLAGS-1 downto 0) := "01111111";
-    constant FLAGS_ZCNVSH : std_logic_vector(NUM_FLAGS-1 downto 0) := "00111111";
-    constant FLAGS_ZCNVS  : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011111";
-    constant FLAGS_ZNVS   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011110";
-    constant FLAGS_T      : std_logic_vector(NUM_FLAGS-1 downto 0) := "01000000";
-    constant FLAGS_C      : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000001";
-    constant FLAGS_NONE   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000000";
-
     -- Storage for the current cycle count
     signal instr_cycle    :    std_logic_vector(MAX_INSTR_CLKS-1 downto 0); -- 1-hot cycle
                                                                             -- counter
@@ -201,8 +192,8 @@ begin
         reset_instr_counter <= '1'; -- Assume instruction is 1 clock
         DataRd <= '1';              -- Neither read nor write (active low)
         DataWr <= '1';
-        DBOutputEnable <= '1'       -- Assume we can write to the data DB
-        OPBInSel <= '0'             -- Assume we're taking register B output most of the time
+        DBEnableOutput <= '1';       -- Assume we can write to the data DB
+        OPBInSel <= '0';             -- Assume we're taking register B output most of the time
 
         -- Default Register Controls
         RegASel <= "00" & IR(8 downto 4);           -- Assume that register selects 
@@ -723,7 +714,7 @@ begin
             end if;
 
             -- Select AddrReg
-            if IR(3 downto 0) = "1111" -- SP
+            if IR(3 downto 0) = "1111" then -- SP
                 AddrRegSel <= ADDR_REG_SEL_SP;
             else
                 AddrRegSel <= IR (3 downto 2);
@@ -746,7 +737,7 @@ begin
                 if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
-                    DBOutputEnable <= IR(9); -- Give up control of the DB if reading
+                    DBEnableOutput <= IR(9); -- Give up control of the DB if reading
                 end if;
 
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
@@ -811,7 +802,7 @@ begin
                 if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
-                    DBOutputEnable <= IR(9); -- Give up control of the DB if reading
+                    DBEnableOutput <= IR(9); -- Give up control of the DB if reading
                 end if;
 
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
@@ -858,7 +849,7 @@ begin
                 if reg_access_enable = '0' then
                     DataRd <= clock or IR(9);
                     DataWr <= clock or not IR(9);
-                    DBOutputEnable <= IR(9); -- Give up control of the DB if reading
+                    DBEnableOutput <= IR(9); -- Give up control of the DB if reading
                 end if;
 
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then

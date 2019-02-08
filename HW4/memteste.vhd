@@ -61,51 +61,56 @@ end  MEM_TEST;
 architecture data_flow of MEM_TEST is
     -- Intermediate signals between internal units #################################################
     -- Control Unit
-    signal PreDataAB        std_logic_vector(DATA_AB_SIZE-1 downto 0);
-    signal ProgDB           std_logic_vector(INSTR_SIZE-1 downto 0);
-    signal IOSel            std_logic;
-    signal RegInSel         std_logic;
-    signal OPBInSel         std_logic;
-    signal DBEnableOutput   std_logic;
-    signal IR_Immediate     std_logic_vector(NUM_BITS-1 downto 0);
+    signal PreDataAB        :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
+    signal IOSel            :   std_logic;
+    signal RegInSel         :   std_logic;
+    signal OPBInSel         :   std_logic;
+    signal DBEnableOutput   :   std_logic;
+    signal IR_Immediate     :   std_logic_vector(NUM_BITS-1 downto 0);
+                               
+    -- ALU                     
+    signal CarryFlag        :   std_logic;
+    signal TFlag            :   std_logic;
+    signal N_AddMask        :   std_logic;
+    signal FSRControl       :   std_logic_vector(3 downto 0);
+    signal Subtract         :   std_logic;
+    signal CarryInControl   :   std_logic_vector(1 downto 0);
+    signal ALUResultSel     :   std_logic;
+    signal TSCBitSelect     :   std_logic_vector(2 downto 0);
+    signal TLoad            :   std_logic;
+    signal BitSetClear      :   std_logic;
+    signal SettingClearing  :   std_logic;
+    signal Result           :   std_logic_vector(NUM_BITS-1 downto 0);
+    signal NewFlags         :   std_logic_vector(NUM_FLAGS-2 downto 0);
+                               
+    -- Registers                 
+    signal AddrRegIn        :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
+    signal RegWr            :   std_logic;                      
+    signal RegWrSel         :   std_logic_vector(6 downto 0);      
+    signal RegASel          :   std_logic_vector(6 downto 0);   
+    signal RegBSel          :   std_logic_vector(6 downto 0);   
+    signal SFlag            :   std_logic;                        
+    signal FlagMask         :   std_logic_vector(NUM_BITS-1 downto 0); 
+    signal AddrRegSel       :   std_logic_vector(1 downto 0);       
+    signal AddrRegWr        :   std_logic;             
+    signal RegAOutput       :   std_logic_vector(NUM_BITS-1 downto 0); 
+    signal RegBOutput       :   std_logic_vector(NUM_BITS-1 downto 0);
+    signal AddrRegOut       :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
+    signal SREG             :   std_logic_vector(NUM_BITS-1 downto 0);
+                               
+    -- DataMAU                 
+    signal IR_Offset        :   std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
+    signal N_Inc            :   std_logic;
+    signal N_OffsetMask     :   std_logic;
+    signal PrePostSel       :   std_logic;
+    signal OutputImmediate  :   std_logic;
 
-    -- ALU
-    signal CarryFlag        std_logic;
-    signal TFlag            std_logic;
-    signal N_AddMask        std_logic;
-    signal FSRControl       std_logic_vector(3 downto 0);
-    signal Subtract         std_logic;
-    signal CarryInControl   std_logic_vector(1 downto 0);
-    signal ALUResultSel     std_logic;
-    signal TSCBitSelect     std_logic_vector(2 downto 0);
-    signal TLoad            std_logic;
-    signal BitSetClear      std_logic;
-    signal SettingClearing  std_logic;
-    signal Result           std_logic_vector(NUM_BITS-1 downto 0);
-    signal NewFlags         std_logic_vector(NUM_FLAGS-2 downto 0);
-
-    -- Registers              
-    signal AddrRegIn        std_logic_vector(DATA_AB_SIZE-1 downto 0);
-    signal RegWr            std_logic;                      
-    signal RegWrSel         std_logic_vector(6 downto 0);      
-    signal RegASel          std_logic_vector(6 downto 0);   
-    signal RegBSel          std_logic_vector(6 downto 0);   
-    signal SFlag            std_logic;                        
-    signal FlagMask         std_logic_vector(NUM_BITS-1 downto 0); 
-    signal NewFlags         std_logic_vector(NUM_FLAGS-2 downto 0); 
-    signal AddrRegSel       std_logic_vector(1 downto 0);       
-    signal AddrRegWr        std_logic;             
-    signal RegAOutput       std_logic_vector(NUM_BITS-1 downto 0); 
-    signal RegBOutput       std_logic_vector(NUM_BITS-1 downto 0);
-    signal AddrRegOut       std_logic_vector(DATA_AB_SIZES-1 downto 0);
-    signal SREG             std_logic_vector(NUM_BITS-1 downto 0);
-
-    -- DataMAU
-    signal IR_Offset        std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
-    signal N_Inc            std_logic;
-    signal N_OffsetMask     std_logic;
-    signal PrePostSel       std_logic;
-    signal OutputImmediate  std_logic;
+    -- Unused Signals
+    signal DBSel            :   std_logic;
+    signal PCUpdateEn       :   std_logic;
+    signal N_PCLoad         :   std_logic_vector(3 downto 0);
+    signal PCControl        :   std_logic_vector(2 downto 0);
+    signal HiLoSel          :   std_logic;
 
     -- Actual input to operand B of the ALU. Used for muxing below
     signal OperandBIn       :   std_logic_vector(7 downto 0);
@@ -113,8 +118,8 @@ architecture data_flow of MEM_TEST is
 begin
 
     -- Connect specific flags to the SREG for the ALU
-    CarryFlag   <=  SREG(FLAGS_C);
-    TFlag       <=  SREG(FLAGS_T);
+    CarryFlag   <=  SREG(FLAG_C);
+    TFlag       <=  SREG(FLAG_T);
 
     -- Mux the input to operand B (take immediate from ControlUnit when necessary)
     OperandBIn  <=  RegBOutput when OPBInSel = '0' else
@@ -181,7 +186,7 @@ begin
     );
 
     -- Map our Register Array
-    ControlUnit : entity work.Registers
+    Registers : entity work.Registers
     port map(
         clock                       => clock      ,
         reset                       => reset      ,
@@ -205,7 +210,7 @@ begin
     );
 
     -- Map our DataMAU
-    ControlUnit : entity work.DataMAU
+    DataMAU : entity work.DataMAU
     port map(                         
         clock                       => clock          ,  
         IR_Offset                   => IR_Offset      ,  
@@ -222,7 +227,7 @@ begin
     );
 
     -- Map our ALU
-    ControlUnit : entity work.ALU
+    ALU : entity work.ALU
     port map(
         OperandA                    => RegAOutput     ,
         OperandB                    => OperandBIn     ,

@@ -50,7 +50,7 @@ entity Registers is
     port (
         clock       : in std_logic;              
         reset       : in std_logic;                
-        RegIn       : in std_logic_vector(NUM_BITS-1 downto 0) 
+        RegIn       : in std_logic_vector(NUM_BITS-1 downto 0);
         AddrRegIn   : in std_logic_vector(DATA_AB_SIZE-1 downto 0);
         RegWr       : in std_logic;                      
         RegWrSel    : in std_logic_vector(6 downto 0);      
@@ -64,7 +64,7 @@ entity Registers is
 
         RegAOutput  : out std_logic_vector(NUM_BITS-1 downto 0); 
         RegBOutput  : out std_logic_vector(NUM_BITS-1 downto 0);
-        AddrRegOut  : out std_logic_vector(DATA_AB_SIZES-1 downto 0);
+        AddrRegOut  : out std_logic_vector(DATA_AB_SIZE-1 downto 0);
         SREG        : out std_logic_vector(NUM_BITS-1 downto 0)
     );
 end Registers;

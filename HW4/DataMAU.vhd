@@ -30,7 +30,7 @@
 --      OutputImmediate (std_logic)                 - Output the IR instead of the computed address
 --      
 -- Outputs:
---      DataAB          (std_logic_vector(NUM_BITS-1 downto 0))     - Computed data address
+--      DataAB          (std_logic_vector(DATA_AB_SIZE-1 downto 0)) - Computed data address
 --      NewAddrData     (std_logic_vector(DATA_AB_SIZE-1 downto 0)) - Updated address reg
 --
 -- Revision History:
@@ -54,7 +54,7 @@ entity DataMAU is
         N_OffsetMask    :   in  std_logic;
         PrePostSel      :   in  std_logic;
         OutputImmediate :   in  std_logic;
-        DataAB          :   out std_logic_vector(NUM_BITS-1 downto 0);
+        DataAB          :   out std_logic_vector(DATA_AB_SIZE-1 downto 0);
         NewAddrData     :   out std_logic_vector(DATA_AB_SIZE-1 downto 0)
     );
 end DataMAU;

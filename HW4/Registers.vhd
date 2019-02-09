@@ -114,7 +114,7 @@ begin
     begin
         if rising_edge(clock) then
             -- Write to register if requested
-            if (RegWr = '1') then
+            if (RegWr = '1') and (Reset = '1') then -- don't write to registers during reset bc sim
                 RegData(to_integer(unsigned(RegWrSel))) <= RegIn;
             end if;
             -- Set SREG with input if requested

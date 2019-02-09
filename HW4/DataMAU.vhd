@@ -28,6 +28,7 @@
 --      PrePostSel      (std_logic)                 - Select between pre-post inc
 --                                                    part of PC
 --      OutputImmediate (std_logic)                 - Output the IR instead of the computed address
+--      ImmediateAddrLatch (std_logic)              - Emables latching of the progdb
 --      
 -- Outputs:
 --      DataAB          (std_logic_vector(DATA_AB_SIZE-1 downto 0)) - Computed data address
@@ -54,6 +55,7 @@ entity DataMAU is
         N_OffsetMask    :   in  std_logic;
         PrePostSel      :   in  std_logic;
         OutputImmediate :   in  std_logic;
+        ImmediateAddrLatch: in  std_logic;
         DataAB          :   out std_logic_vector(DATA_AB_SIZE-1 downto 0);
         NewAddrData     :   out std_logic_vector(DATA_AB_SIZE-1 downto 0)
     );
@@ -87,7 +89,9 @@ begin
     process(clock)
     begin
         if rising_edge(clock) then -- Give the most time we possibly can
-            Latched_Immediate_Addr <= Immediate_Addr;
+            if ImmediateAddrLatch = '1' then
+                Latched_Immediate_Addr <= Immediate_Addr;
+            end if;
         end if;
     end process;
 

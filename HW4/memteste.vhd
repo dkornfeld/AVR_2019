@@ -103,6 +103,7 @@ architecture data_flow of MEM_TEST is
     signal N_OffsetMask     :   std_logic;
     signal PrePostSel       :   std_logic;
     signal OutputImmediate  :   std_logic;
+    signal ImmediateAddrLatch : std_logic;
 
     -- Actual input to operand B of the ALU. Used for muxing below
     signal OperandBIn       :   std_logic_vector(7 downto 0);
@@ -165,7 +166,8 @@ begin
         N_Inc                       => N_Inc                    ,
         N_OffsetMask                => N_OffsetMask             ,
         PrePostSel                  => PrePostSel               ,
-        OutputImmediate             => OutputImmediate           
+        OutputImmediate             => OutputImmediate          ,
+        ImmediateAddrLatch          => ImmediateAddrLatch 
     );
 
     -- Map our Register Array
@@ -204,6 +206,7 @@ begin
         N_OffsetMask                => N_OffsetMask   ,  
         PrePostSel                  => PrePostSel     ,  
         OutputImmediate             => OutputImmediate, 
+        ImmediateAddrLatch          => ImmediateAddrLatch,
 
         DataAB                      => PreDataAB      ,  
         NewAddrData                 => AddrRegIn    

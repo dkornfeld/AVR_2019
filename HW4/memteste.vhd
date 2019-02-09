@@ -63,7 +63,6 @@ architecture data_flow of MEM_TEST is
     -- Control Unit
     signal PreDataAB        :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
     signal IOSel            :   std_logic;
-    signal RegInSel         :   std_logic;
     signal OPBInSel         :   std_logic;
     signal DBEnableOutput   :   std_logic;
     signal IR_Immediate     :   std_logic_vector(NUM_BITS-1 downto 0);
@@ -105,13 +104,6 @@ architecture data_flow of MEM_TEST is
     signal PrePostSel       :   std_logic;
     signal OutputImmediate  :   std_logic;
 
-    -- Unused Signals
-    signal DBSel            :   std_logic;
-    signal PCUpdateEn       :   std_logic;
-    signal N_PCLoad         :   std_logic_vector(3 downto 0);
-    signal PCControl        :   std_logic_vector(2 downto 0);
-    signal HiLoSel          :   std_logic;
-
     -- Actual input to operand B of the ALU. Used for muxing below
     signal OperandBIn       :   std_logic_vector(7 downto 0);
 
@@ -145,10 +137,7 @@ begin
         -- General Control Signals
         DataRd                      => DataRd                   ,
         DataWr                      => DataWr                   ,
-        IOSel                       => IOSel                    ,
-        RegInSel                    => RegInSel                 ,
         OPBInSel                    => OPBInSel                 ,
-        DBSel                       => DBSel                    ,
         DBEnableOutput              => DBEnableOutput           ,
         -- Raw values                  
         IR_Immediate                => IR_Immediate             ,
@@ -160,7 +149,6 @@ begin
         RegBSel                     => RegBSel                  ,
         SFlag                       => SFlag                    ,
         FlagMask                    => FlagMask                 ,
-        NewFlags                    => NewFlags                 ,
         AddrRegSel                  => AddrRegSel               ,
         AddrRegWr                   => AddrRegWr                ,
         -- ALU                                      
@@ -173,11 +161,6 @@ begin
         TLoad                       => TLoad                    ,
         BitSetClear                 => BitSetClear              ,
         SettingClearing             => SettingClearing          ,
-        -- PMAU                                   
-        PCUpdateEn                  => PCUpdateEn               ,
-        N_PCLoad                    => N_PCLoad                 ,
-        PCControl                   => PCControl                ,
-        HiLoSel                     => HiLoSel                  ,
         -- DMAU                                   
         N_Inc                       => N_Inc                    ,
         N_OffsetMask                => N_OffsetMask             ,

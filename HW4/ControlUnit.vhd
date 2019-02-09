@@ -29,7 +29,6 @@
 --        DataRd               (std_logic)                          - Read data
 --        DataWr               (std_logic)                          - Write data
 --        IOSel                (std_logic)                          - For in/out instructions
---        RegInSel             (std_logic)                          - Controls input to RegArray
 --        OPBInSel             (std_logic)                          - Controls Mux into ALU B Op
 --        DBSel                (std_logic)                          - Controls output to Data DB
 --        DBEnableOutput       (std_logic)                          - If '0', tri-states the DB out
@@ -110,7 +109,6 @@ entity ControlUnit is
         DataRd              :    out    std_logic;
         DataWr              :    out    std_logic;
         IOSel               :    out    std_logic;
-        RegInSel            :    out    std_logic;
         OPBInSel            :    out    std_logic;
         DBSel               :    out    std_logic; -- Not used this week
         DBEnableOutput      :    out    std_logic;
@@ -124,7 +122,6 @@ entity ControlUnit is
         RegBSel             :    out    std_logic_vector(6 downto 0);   
         SFlag               :    out    std_logic;                        
         FlagMask            :    out    std_logic_vector(NUM_BITS-1 downto 0); 
-        NewFlags            :    out    std_logic_vector(NUM_FLAGS-2 downto 0); 
         AddrRegSel          :    out    std_logic_vector(1 downto 0);       
         AddrRegWr           :    out    std_logic;             
         -- ALU

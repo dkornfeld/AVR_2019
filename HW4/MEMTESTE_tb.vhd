@@ -87,6 +87,7 @@ begin -- #######################################################################
         clock   => CLK, 
         Reset   => reset,
         DataAB  => DataAB, 
+        DataDB  => DataDB,
         DataRd  => DataRd,
         DataWr  => DataWr
     );

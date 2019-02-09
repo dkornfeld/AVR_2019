@@ -181,7 +181,7 @@ begin
     end process;
     
     -- Instruction decoding
-    process(IR, instr_cycle, ProgDB, DataAB)
+    process(IR, clock, instr_cycle, ProgDB, DataAB)
     begin        
         -- Default General Controls
         reset_instr_counter <= '1'; -- Assume instruction is 1 clock

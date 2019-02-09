@@ -145,6 +145,19 @@ begin -- #######################################################################
                 report  "DataDB was wrong on test " & integer'image(i) & "."
                 severity  ERROR;
 
+            -- First, read and write should both be high
+
+            assert(std_match(DataRd, '1'))
+                report  "DataRd went low too early in test " & integer'image(i) & "."
+                severity  ERROR;
+
+            assert(std_match(DataWr, '1'))
+                report  "DataWr went low too early in test " & integer'image(i) & "."
+                severity  ERROR;
+
+            -- Then, see what they should actually be doing
+            wait for CLK_PERIOD/2;
+
             assert(std_match(DataRd, ExpectedDataRd))
                 report  "DataRd was wrong on test " & integer'image(i) & "."
                 severity  ERROR;
@@ -153,7 +166,7 @@ begin -- #######################################################################
                 report  "DataWr was wrong on test " & integer'image(i) & "."
                 severity  ERROR;
         
-            wait for CLK_PERIOD - 1 ns; -- One computation per clock (for now)
+            wait for CLK_PERIOD/2 - 1 ns; -- One computation per clock (for now)
             
         end loop;
             

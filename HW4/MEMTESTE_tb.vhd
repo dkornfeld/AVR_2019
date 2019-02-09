@@ -117,17 +117,18 @@ begin -- #######################################################################
             IR          <= TEST_VECTORS(i)(test_tuple_length-1 downto test_tuple_length-
                             opcode_word'length);
             ProgDB      <= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-1 downto 
-                            test_tuple_length-opcode_word'length-opcode_word'length);
-            DataDB      <= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-opcode_word'length-1 
-                            downto test_tuple_length-opcode_word'length-opcode_word'length-NUM_BITS);
+                            test_tuple_length-opcode_word'length-DATA_AB_SIZE);
+            DataDB      <= TEST_VECTORS(i)(test_tuple_length-opcode_word'length-DATA_AB_SIZE-1 
+                            downto test_tuple_length-opcode_word'length-DATA_AB_SIZE-NUM_BITS);
+
+            ExpectedDataDB  := TEST_VECTORS(i)(test_tuple_length-opcode_word'length-DATA_AB_SIZE-
+                                NUM_BITS-1 downto test_tuple_length-opcode_word'length-DATA_AB_SIZE-
+                                NUM_BITS-NUM_BITS);
 
             -- Expected outputs
             ExpectedDataAB  := TEST_VECTORS(i)(test_tuple_length-opcode_word'length-DATA_AB_SIZE-
-                                NUM_BITS-1 downto test_tuple_length-opcode_word'length-DATA_AB_SIZE-
-                                NUM_BITS-DATA_AB_SIZE);
-            ExpectedDataDB  := TEST_VECTORS(i)(test_tuple_length-opcode_word'length-DATA_AB_SIZE-
-                                NUM_BITS-DATA_AB_SIZE-1 downto test_tuple_length-opcode_word'length-
-                                DATA_AB_SIZE-NUM_BITS-DATA_AB_SIZE-NUM_BITS);
+                                NUM_BITS-NUM_BITS-1 downto test_tuple_length-opcode_word'length-
+                                DATA_AB_SIZE-NUM_BITS-NUM_BITS-DATA_AB_SIZE);
             ExpectedDataRd  := TEST_VECTORS(i)(1);
             ExpectedDataWr  := TEST_VECTORS(i)(0);
 

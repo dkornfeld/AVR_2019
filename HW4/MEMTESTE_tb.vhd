@@ -39,7 +39,7 @@ architecture TB_ARCHITECTURE of MEMTESTE_tb is
     
     -- Test Vectors
     -- IR & ProgDB & DataDB in & DataDB out & DataAB & DataRd & DataWr
-    constant    TEST_VECTORS    :   test_tuple(1 to 10) :=  (
+    constant    TEST_VECTORS    :   test_tuple(1 to 15) :=  (
         "1110011010100000" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R26, 0x60
         "1110000010110000" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R27, 0x00
         "1110011011000000" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R28, 0x60
@@ -49,7 +49,12 @@ architecture TB_ARCHITECTURE of MEMTESTE_tb is
         "1110101000000101" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R16, 0xa5
         "1110010100011010" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R17, 0x5a
         "1001001100001100" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- ST R16 X
-        "1001001100001100" & X"0000" & "ZZZZZZZZ" & X"A5"      & X"0060"            & "1" & "0" -- ST R16 X
+        "1001001100001100" & X"0000" & "ZZZZZZZZ" & X"A5"      & X"0060"            & "1" & "0",-- ST R16 X
+        "1001000000001100" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LD R16 X
+        "1001000000001100" & X"0000" & X"A5"      & "--------" & X"0060"            & "0" & "1",-- LD R16 X
+        "1001001100010000" & X"CCCC" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- STS R17 0x0001
+        "1001001100010000" & X"0001" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- STS R17 0x0001
+        "1001001100010000" & X"CCCC" & "ZZZZZZZZ" & X"5A"      & X"0001"            & "1" & "1" -- STS R17 0x0001
     );
     
     -- Timing Constants ----------------------------------------------------------------------------
@@ -112,8 +117,10 @@ begin -- #######################################################################
         wait for 5 * CLK_PERIOD;
 
         -- Begin the tests
-        reset <= '1';
         for i in 1 to TEST_VECTORS'length loop
+
+            wait for 1 ns;
+            reset <= '1'; -- not resetting
             
             -- Retrieve test values from the vector (Gross arithmetic only used here. No need for
             -- constants)
@@ -166,7 +173,7 @@ begin -- #######################################################################
                 report  "DataWr was wrong on test " & integer'image(i) & "."
                 severity  ERROR;
         
-            wait for CLK_PERIOD/2 - 1 ns; -- One computation per clock (for now)
+            wait for CLK_PERIOD/2 -2 ns; -- One computation per clock (for now)
             
         end loop;
             

@@ -48,7 +48,7 @@ architecture TB_ARCHITECTURE of MEMTESTE_tb is
         "1110000011110010" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R31, 0x02
         "1110101000000101" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R16, 0xa5
         "1110010100011010" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- LDI R17, 0x5a
-        "1001001100001100" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "0",-- ST R16 X
+        "1001001100001100" & X"0000" & "ZZZZZZZZ" & "--------" & "----------------" & "1" & "1",-- ST R16 X
         "1001001100001100" & X"0000" & "ZZZZZZZZ" & X"A5"      & X"0060"            & "1" & "0" -- ST R16 X
     );
     
@@ -165,14 +165,14 @@ begin -- #######################################################################
         -- this process generates a clock with a CLK_PERIOD period and 50% 
         -- duty cycle. stop the clock when end of simulation is reached
         if END_SIM = FALSE then
-            CLK <= '0';
+            CLK <= '1';
             wait for (CLK_PERIOD/2);
         else
             wait;
         end if;
 
         if END_SIM = FALSE then
-            CLK <= '1';
+            CLK <= '0';
             wait for (CLK_PERIOD/2);
         else
             wait;

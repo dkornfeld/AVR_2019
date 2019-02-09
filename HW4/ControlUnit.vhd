@@ -163,8 +163,6 @@ begin
     reg_access_enable <= '1' when (to_integer(unsigned(DataAB)) < NUM_REGS) else '0';
     reg_index <= DataAB(6 downto 0);
 
-    -- Immediate 8-bit values from instruction get pulled out this way
-    IR_Immediate <= IR(11 downto 8) & IR(3 downto 0);
     -- And offsets get pulled out this way
     IR_Offset <= IR(13) & IR(11 downto 10) & IR(2 downto 0);
     
@@ -191,6 +189,9 @@ begin
         DataWr <= '1';
         DBEnableOutput <= '1';       -- Assume we can write to the data DB
         OPBInSel <= '0';             -- Assume we're taking register B output most of the time
+
+        -- By default immediate 8-bit values from instruction get pulled out this way
+        IR_Immediate <= IR(11 downto 8) & IR(3 downto 0);
 
         -- Default Register Controls
         RegASel <= "00" & IR(8 downto 4);           -- Assume that register selects 

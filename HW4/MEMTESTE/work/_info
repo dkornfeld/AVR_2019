@@ -19,7 +19,7 @@ L56
 V_UV4OlcRJ<F<_a02G7aUz2
 Z10 OV;C;10.1d;51
 32
-Z11 !s108 1549671212.354000
+Z11 !s108 1549672808.713000
 Z12 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/ALU.vhd|
 Z13 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/ALU.vhd|
 Z14 o-work work -2002 -explicit -O0
@@ -63,11 +63,11 @@ R14
 R15
 !s100 Tc89L1hfF4Gi[V;M@?ozE3
 !i10b 1
-!s108 1549671212.598000
+!s108 1549672808.877000
 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/AVR_2019_constants.vhd|
 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/AVR_2019_constants.vhd|
 Econtrolunit
-Z17 w1549670199
+Z17 w1549671652
 Z18 DPx4 work 7 opcodes 0 22 [iE[]G7g:1^R=G5?1B>PL0
 R1
 R4
@@ -81,7 +81,7 @@ L98
 V^Qo;l9mKGB@?2FQ5lnjz23
 R10
 32
-Z21 !s108 1549671212.768000
+Z21 !s108 1549672809.098000
 Z22 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/ControlUnit.vhd|
 Z23 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/ControlUnit.vhd|
 R14
@@ -97,7 +97,7 @@ R6
 Z24 DEx4 work 11 controlunit 0 22 ^Qo;l9mKGB@?2FQ5lnjz23
 l160
 L150
-VV1o91PE7^IkkJJa_c1;H21
+VTBEe20Wo5ALh9CezXB7i82
 R10
 32
 R21
@@ -105,7 +105,7 @@ R22
 R23
 R14
 R15
-!s100 mb5I9RVCONH_QN@U98aWE0
+!s100 oTC;f@T:B2RA[3FibPmCb3
 !i10b 1
 Edatamau
 Z25 w1549623821
@@ -121,7 +121,7 @@ L47
 Vl7ffOF^S96dg3@K_me];10
 R10
 32
-Z28 !s108 1549671213.016000
+Z28 !s108 1549672809.335000
 Z29 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/DataMAU.vhd|
 Z30 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/DataMAU.vhd|
 R14
@@ -161,7 +161,7 @@ L46
 V2`1T^FB5:1?WV7a8`I]_>3
 R10
 32
-Z35 !s108 1549671213.314000
+Z35 !s108 1549672809.633000
 Z36 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/memteste.vhd|
 Z37 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/memteste.vhd|
 R14
@@ -194,7 +194,7 @@ R15
 !s100 88ZcFLmbl7JSeDMbz2TkT3
 !i10b 1
 Ememteste_tb
-Z40 w1549671202
+Z40 w1549672801
 R18
 R1
 R4
@@ -210,7 +210,7 @@ VW[_OLGbSH1BkXU<h;:biS1
 R10
 32
 !i10b 1
-Z43 !s108 1549671213.965000
+Z43 !s108 1549672810.381000
 Z44 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/MEMTESTE_tb.vhd|
 Z45 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/MEMTESTE_tb.vhd|
 R14
@@ -223,10 +223,10 @@ R4
 R5
 R6
 Z46 DEx4 work 11 memteste_tb 0 22 W[_OLGbSH1BkXU<h;:biS1
-l78
+l80
 L23
-VazQM[YnYfURUI<C]^fL@42
-!s100 26@D^=2`>S6Rh5z1mS@]j2
+VCIFVfPW`2b4Pa2m^:DMCR0
+!s100 <M?>=lnMz3fk<1@`<4HKX3
 R10
 32
 !i10b 1
@@ -251,11 +251,11 @@ R14
 R15
 !s100 5Q>Z>K0g]meWo4Y9ze=9:3
 !i10b 1
-!s108 1549671213.575000
+!s108 1549672809.796000
 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/opcodes.vhd|
 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/opcodes.vhd|
 Eregisters
-Z47 w1549623140
+Z47 w1549672222
 R1
 R2
 R3
@@ -270,7 +270,7 @@ L46
 VUh5cUDTG^i>EZj2=90m>72
 R10
 32
-Z50 !s108 1549671213.764000
+Z50 !s108 1549672810.018000
 Z51 !s90 -reportprogress|300|-work|work|-2002|-explicit|C:/Users/david/Documents/GitHub/AVR_2019/HW4/Registers.vhd|
 Z52 !s107 C:/Users/david/Documents/GitHub/AVR_2019/HW4/Registers.vhd|
 R14
@@ -287,8 +287,8 @@ R6
 R38
 l93
 L72
-V;X=E=9C1A_ed>GzB?QMzK3
-!s100 lg3Xj=WiA<0B<fhzmVT]?1
+V;3b6<[PkHV:A=ThnAXb[L1
+!s100 kcB?e_mcIK60NlD;DnTbk0
 R10
 32
 R50

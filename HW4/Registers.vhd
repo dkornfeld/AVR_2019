@@ -85,7 +85,7 @@ architecture data_flow of Registers is
     
     --Define registers, signals.
     type REG_ARRAY is array (0 to NUM_REGS-1) of std_logic_vector(NUM_BITS-1 downto 0);
-    signal RegData  :    REG_ARRAY;
+    signal RegData  :    REG_ARRAY := (others => (others => '0')); -- For simulation only. Init to 0
     signal RegA     :    std_logic_vector(NUM_BITS-1 downto 0); -- used for intermediate computations, 
                                                                 -- will be useful for future assignments
     signal RegB     :    std_logic_vector(NUM_BITS-1 downto 0); -- used for intermediate computations, 

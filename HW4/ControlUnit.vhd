@@ -143,7 +143,8 @@ entity ControlUnit is
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
         PrePostSel          :    out    std_logic;
-        OutputImmediate     :    out    std_logic
+        OutputImmediate     :    out    std_logic;
+        ImmediateAddrLatch  :    out    std_logic
     );
 end ControlUnit;
 -----------------------------------------------------------------------------------------
@@ -165,6 +166,9 @@ begin
 
     -- And offsets get pulled out this way
     IR_Offset <= IR(13) & IR(11 downto 10) & IR(2 downto 0);
+
+    -- We only want to latch ProgDB on cycle 2.
+    ImmediateAddrLatch <= instr_cycle(1);
     
     -- Instruction cycle counter logic
     process(clock)

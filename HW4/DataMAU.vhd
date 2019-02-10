@@ -8,14 +8,6 @@
 --                  for updating the address register. Additionally, offsets or immediates can 
 --                  be added to (or replace entirely) any of the address registers before the 
 --                  value is put on the bus.
---          
---
---  Parameters: (from header)
---      NUM_BITS            (integer range 2 to Infinity) - The number of bits used to 
---                                                          represent the numbers in the 
---                                                          Data bus.
---      DATA_OFFSET_SIZE    (integer range 2 to NUM_BITS) - The size of offsets allowed
---      DATA_AB_SIZE        (integer range 2 to Infinity) - Width of the Data Address Bus
 --
 -- Inputs:
 --      clock           (std_logic)                                         - System clock
@@ -40,6 +32,8 @@
 --      02/05/19    David Kornfeld   Finished first draft and got to compile
 --      02/07/19    David Kornfeld   Latched ProgDB input
 --      02/08/19    Bobby Abrahamson Fixed error in PreIncrement calculation
+--      02/09/19    David Kornfeld  Updated documentation
+
 ----------------------------------------------------------------------------------------------------
 library  ieee;
 use ieee.numeric_std.all;

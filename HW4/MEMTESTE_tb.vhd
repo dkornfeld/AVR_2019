@@ -1,15 +1,19 @@
--- Title:   Test Bench for ALU and SREG
+-- Title:   Test Bench for Data Memory Access Unit
 -- Author:  David Kornfeld and Bobby Abrahamson
 --
--- This file serves as a testbench for the ALU unit as it is implemented for grading testing. The 
--- results are compared against a set of hand-written test-vectors. This uses the tests from the
--- ALU testbench, but delays the flag checks by a clock to check the functionality of the SREG. 
--- Additionally, all pre-set flag cases are converted to BSET/BCLR commands.
+-- This file serves as a testbench for the data memory access unit as it is implemented for grading 
+-- testing. The results are compared against a set of hand-written test-vectors. These vectors were 
+-- generated to test edge-cases and memory mapping of register space, including numerous 
+-- unconventional reads and writes, designed to break the system. These may include writing to 
+-- the register space via memory and accessing them via pushes and pops. This shows the robust 
+-- memory/register duality implemented in the processor.
 --
 --
 -- Revision History:
---      02/05/19    David Kornfeld      Copied from ALU_tb
---      02/05/19    David Kornfeld      Modified for registered flags
+--      02/05/19    David Kornfeld      Initial Revision
+--      02/05/19    David Kornfeld      Added extra control signals between units to latch ProgDB
+--      02/08/19    Bobby Abrahamson    Generated most test vectors for edge cases
+--      02/09/19    David Kornfeld      Updated documentation
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -230,7 +234,7 @@ begin -- #######################################################################
         for i in 1 to TEST_VECTORS'length loop
 
             wait for 1 ns;
-            reset <= '1'; -- not resetting
+            reset <= '1'; -- not resetting anymore
             
             -- Retrieve test values from the vector (Gross arithmetic only used here. No need for
             -- constants)
@@ -254,6 +258,8 @@ begin -- #######################################################################
 
             wait for 1 ns;
             
+            -- Check the DataAB and DB for proper values
+
             assert(std_match(DataAB, ExpectedDataAB))
                 report  "DataAB was wrong on test " & integer'image(i) & "."
                 severity  ERROR;

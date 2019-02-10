@@ -113,10 +113,6 @@ begin
     process(clock, RegIn, AddrRegIn, NewFlags, FlagMask, RegData(SREG_IDX))
     begin
         if rising_edge(clock) then
-            -- Write to register if requested
-            if (RegWr = '1') and (Reset = '1') then -- don't write to registers during reset bc sim
-                RegData(to_integer(unsigned(RegWrSel))) <= RegIn;
-            end if;
             -- Set SREG with input if requested
             if (SFlag = '0') then
                 for i in 0 to NUM_FLAGS-2 loop
@@ -129,6 +125,10 @@ begin
             else -- (SFlag = '1')
                 -- Directly write RegIn to SREG
                 RegData(SREG_IDX) <= Regin;
+            end if;
+            -- Write to register if requested
+            if (RegWr = '1') and (Reset = '1') then -- don't write to registers during reset bc sim
+                RegData(to_integer(unsigned(RegWrSel))) <= RegIn;
             end if;
             -- Update Address registers as requested
             if (AddrRegWr = '1') then

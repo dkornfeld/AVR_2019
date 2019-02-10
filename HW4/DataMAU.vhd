@@ -88,7 +88,7 @@ begin
     -- Latch the ProgDB into a register to hold it for LDS/STS #####################################
     process(clock)
     begin
-        if rising_edge(clock) then -- Give the most time we possibly can
+        if falling_edge(clock) then -- Give the most time we possibly can
             if ImmediateAddrLatch = '1' then
                 Latched_Immediate_Addr <= Immediate_Addr;
             end if;
@@ -102,7 +102,7 @@ begin
     end generate;
 
     -- Initialize the Incrementer/Decrementer Carries and results
-    IncCarries(0)           <= InpAddrData(0) and AdderInB(0);
+    IncCarries(0)           <= InpAddrData(0) and IncDecSummand(0);
     PreIncremented(0)       <= InpAddrData(0) xor IncDecSummand(0);
 
     -- Generate the rest of the carries and bits

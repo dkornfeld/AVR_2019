@@ -41,8 +41,8 @@ package AVR_2019_constants is
 
     constant ADDR_REG_SEL_X         :   std_logic_vector(1 downto 0) := "11"; -- Select X
     constant ADDR_REG_SEL_Y         :   std_logic_vector(1 downto 0) := "10"; -- Select Y
-    constant ADDR_REG_SEL_Z         :   std_logic_vector(1 downto 0) := "01"; -- Select Z
-    constant ADDR_REG_SEL_SP        :   std_logic_vector(1 downto 0) := "00"; -- Select SP
+    constant ADDR_REG_SEL_Z         :   std_logic_vector(1 downto 0) := "00"; -- Select Z
+    constant ADDR_REG_SEL_SP        :   std_logic_vector(1 downto 0) := "01"; -- Select SP
 
     -- Constants useful for flag masks (1 indicates flag is changed)
     constant FLAGS_ALL    : std_logic_vector(NUM_FLAGS-1 downto 0) := "01111111";

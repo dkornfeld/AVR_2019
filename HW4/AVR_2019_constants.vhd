@@ -68,6 +68,12 @@ package AVR_2019_constants is
     constant ALU_FSR_A_OR_B      :   std_logic_vector(3 downto 0) := "1110";
     constant ALU_FSR_ONES        :   std_logic_vector(3 downto 0) := "1111";
 
+    -- Carry in constants
+    constant CARRY_IN_ZERO       :   std_logic_vector(1 downto 0) := "00";
+    constant CARRY_IN_CFLAG      :   std_logic_vector(1 downto 0) := "10";
+    constant CARRY_IN_NCFLAG     :   std_logic_vector(1 downto 0) := "11";
+    constant CARRY_IN_ONE        :   std_logic_vector(1 downto 0) := "01";
+
     -- Shifter/Rotator constants
     constant ALU_FSR_ROR         :   std_logic_vector(3 downto 0) := ALU_FSR_A_NAND_B;
     constant ALU_FSR_SWAP        :   std_logic_vector(3 downto 0) := "0010";

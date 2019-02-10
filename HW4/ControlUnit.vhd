@@ -52,8 +52,10 @@
 --        ALU Control Signals: #####################################################################
 --        N_AddMask       (std_logic)                         - Active low mask for Operand A
 --        FSRControl      (std_logic_vector(3 downto 0))      - F block and shifter control lines
+--                                                                (See AVR_2019_constants).
 --        Subtract        (std_logic)                         - Command subtraction from adder
 --        CarryInControl  (std_logic_vector(1 downto 0))      - Mux lines for carry in to adder
+--                                                                (See AVR_2019_constants).
 --        ALUResultSel    (std_logic)                         - Select between adder and SR
 --        TSCBitSelect    (std_logic_vector(2 downto 0))      - Select which register bit
 --                                                                for loading/storing T.
@@ -224,7 +226,7 @@ begin
             N_AddMask       <= '1';             -- Adding normally
             FSRControl      <= ALU_FSR_B;       -- B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "10";            -- Use carry flag
+            CarryInControl  <= CARRY_IN_CFLAG;  -- Use carry flag
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -237,7 +239,7 @@ begin
             N_AddMask       <= '1';             -- Adding normally
             FSRControl      <= ALU_FSR_B;       -- B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No initial carry
+            CarryInControl  <= CARRY_IN_ZERO;   -- No initial carry
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -273,11 +275,11 @@ begin
             -- Now set the cycle-dependent controls
             if instr_cycle(0) = '1' then                -- 1/2, ADD B
                  FSRControl         <= ALU_FSR_B;       -- B
-                 CarryInControl     <= "00";            -- No initial carry
+                 CarryInControl     <= CARRY_IN_ZERO;   -- No initial carry
             end if;
             if instr_cycle(1) = '1' then                -- 2/2, ADC to 0
                  FSRControl         <= ALU_FSR_ZEROS;   -- 0x00 (0)
-                 CarryInControl     <= "10";            -- Use carry flag
+                 CarryInControl     <= CARRY_IN_CFLAG;  -- Use carry flag
             end if;
         end if;
         
@@ -286,7 +288,7 @@ begin
             N_AddMask       <= '0';             -- Doing logical ops
             FSRControl      <= ALU_FSR_A_AND_B; -- A AND B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No initial carry
+            CarryInControl  <= CARRY_IN_ZERO;   -- No initial carry
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -299,7 +301,7 @@ begin
             N_AddMask       <= '0';             -- Doing logical ops
             FSRControl      <= ALU_FSR_A_AND_B; -- A AND B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No initial carry
+            CarryInControl  <= CARRY_IN_ZERO;   -- No initial carry
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -315,7 +317,7 @@ begin
             N_AddMask       <= '0';             -- Don't care
             FSRControl      <= ALU_FSR_ASR;     -- Doing ASR
             Subtract        <= '0';             -- Don't care
-            CarryInControl  <= "00";            -- Don't care
+            CarryInControl  <= CARRY_IN_ZERO;   -- Don't care
             ALUResultSel    <= '1';             -- Shifter
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -328,7 +330,7 @@ begin
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '1';             -- Change a bit
@@ -344,7 +346,7 @@ begin
             N_AddMask       <= '0';             -- Hide Op A
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry in
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '1';             -- Loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -357,7 +359,7 @@ begin
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '1';             -- Change a bit
@@ -373,7 +375,7 @@ begin
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -386,7 +388,7 @@ begin
             N_AddMask       <= '0';             -- Logical operation
             FSRControl      <= ALU_FSR_NOT_A;   -- not A
             Subtract        <= '1';             -- Forces Carry=1
-            CarryInControl  <= "00";            -- no carry
+            CarryInControl  <= CARRY_IN_ZERO;   -- no carry
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -399,7 +401,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;          -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "01";            -- No borrow in
+            CarryInControl  <= CARRY_IN_ONE;    -- No borrow in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -412,7 +414,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "11";            -- Use carry bar
+            CarryInControl  <= CARRY_IN_NCFLAG; -- Use carry bar
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -425,7 +427,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "01";            -- No borrow in
+            CarryInControl  <= CARRY_IN_ONE;    -- No borrow in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -441,7 +443,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_ONES;    -- 11111111 (-1)
             Subtract        <= '0';             -- Adding (-1)
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -454,7 +456,7 @@ begin
             N_AddMask       <= '0';             -- Logical
             FSRControl      <= ALU_FSR_A_XOR_B; -- A xor B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry in
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -467,7 +469,7 @@ begin
             N_AddMask       <= '1';             -- Adding normally
             FSRControl      <= ALU_FSR_ZEROS;   -- 00000000 (0)
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "01";            -- Add one
+            CarryInControl  <= CARRY_IN_ONE;    -- Add one
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -480,7 +482,7 @@ begin
             N_AddMask       <= '0';             -- Don't care
             FSRControl      <= ALU_FSR_LSR;     -- LSR
             Subtract        <= '0';             -- Don't care
-            CarryInControl  <= "00";            -- Don't care
+            CarryInControl  <= CARRY_IN_ZERO;   -- Don't care
             ALUResultSel    <= '1';             -- Shifter
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -493,7 +495,7 @@ begin
             N_AddMask       <= '0';             -- Unary operation
             FSRControl      <= ALU_FSR_NOT_A;   -- not A
             Subtract        <= '1';             -- Act like subtract
-            CarryInControl  <= "01";            -- Add one
+            CarryInControl  <= CARRY_IN_ONE;    -- Add one
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -506,7 +508,7 @@ begin
             N_AddMask       <= '0';             -- Logical
             FSRControl      <= ALU_FSR_A_OR_B;  -- A or B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry in
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -519,7 +521,7 @@ begin
             N_AddMask       <= '0';             -- Logical
             FSRControl      <= ALU_FSR_A_OR_B;  -- A or B
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry in
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -535,7 +537,7 @@ begin
             N_AddMask       <= '0';             -- Don't care
             FSRControl      <= ALU_FSR_ROR;     -- ROR
             Subtract        <= '0';             -- Don't care
-            CarryInControl  <= "00";            -- Shifter
+            CarryInControl  <= CARRY_IN_ZERO;   -- Shifter
             ALUResultSel    <= '1';             -- Shifter
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -548,7 +550,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "11";            -- Use carry bar
+            CarryInControl  <= CARRY_IN_NCFLAG; -- Use carry bar
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -561,7 +563,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "11";            -- Use carry bar
+            CarryInControl  <= CARRY_IN_NCFLAG; -- Use carry bar
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -600,11 +602,11 @@ begin
             -- Now set the cycle-dependent controls
             if instr_cycle(0) = '1' then            -- 1/2, SUB B
                 FSRControl      <= ALU_FSR_NOT_B;   -- not B
-                CarryInControl  <= "01";            -- No initial borrow
+                CarryInControl  <= CARRY_IN_ONE;    -- No initial borrow
             end if;
             if instr_cycle(1) = '1' then            -- 2/2, SBC w/ 0
                 FSRControl      <= ALU_FSR_ONES;    -- 0xFF SBC 0
-                CarryInControl  <= "11";            -- Use carry bar
+                CarryInControl  <= CARRY_IN_NCFLAG; -- Use carry bar
             end if;
         end if;
         
@@ -613,7 +615,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "01";            -- No borrow in
+            CarryInControl  <= CARRY_IN_ONE;    -- No borrow in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -626,7 +628,7 @@ begin
             N_AddMask       <= '1';             -- Subtracting normally
             FSRControl      <= ALU_FSR_NOT_B;   -- not B
             Subtract        <= '1';             -- Subtracting
-            CarryInControl  <= "01";            -- No borrow in
+            CarryInControl  <= CARRY_IN_ONE;    -- No borrow in
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -642,7 +644,7 @@ begin
             N_AddMask       <= '0';             -- Don't care
             FSRControl      <= ALU_FSR_SWAP;    -- SWAP
             Subtract        <= '0';             -- Don't care
-            CarryInControl  <= "00";            -- Don't care
+            CarryInControl  <= CARRY_IN_ZERO;   -- Don't care
             ALUResultSel    <= '1';             -- Shifter
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -655,7 +657,7 @@ begin
             FSRControl      <= ALU_FSR_B;       -- B passes through
             Subtract        <= '0';             -- Not subtracting
             ALUResultSel    <= '0';             -- Adder
-            CarryInControl  <= "00";            -- No Carry Influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No Carry Influence
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
@@ -667,7 +669,7 @@ begin
             FSRControl      <= ALU_FSR_B;       -- B passes through
             Subtract        <= '0';             -- Not subtracting
             ALUResultSel    <= '0';             -- Adder
-            CarryInControl  <= "00";            -- No Carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No Carry influence
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
@@ -691,7 +693,7 @@ begin
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -703,15 +705,15 @@ begin
             -- Take two cycles
             reset_instr_counter <= instr_cycle(1);
 
-            if IR(9) = '0' then -- Load
-                if reg_access_enable = '1' then
-                    -- Load from registers
+            -- If we are loading/storing from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                if IR(9) = '0' then
+                    -- On a load, read from the correct register.
                     RegASel <= reg_index;
-                end if;
-            else                -- Store
-                if reg_access_enable = '1' then
-                    -- Load from registers
-                    RegWrSel <= reg_index;
+                else
+                    -- On a store, write to the correct register.
+                    RegWRSel <= reg_index;
                 end if;
             end if;
 
@@ -725,33 +727,38 @@ begin
             -- Clock dependent selections
             if instr_cycle(0) = '1' then
                 if IR(1 downto 0) = "10" then -- pre-decrement
-                    PrePostSel <= '1';
-                    AddrRegWr <= '1';
-                    N_Inc <= '1';
+                    PrePostSel <= '1'; -- Select Pre
+                    AddrRegWr <= '1';  -- Update address register
+                    N_Inc <= '1';      -- Select decrement
                 end if;
                 if IR(3 downto 0) = "1111" and IR(9) = '0' then -- pre-increment for pop
-                    PrePostSel <= '1';
-                    AddrRegWr <= '1';
+                    PrePostSel <= '1'; -- Select Pre
+                    AddrRegWr <= '1';  -- Update address register
+                                       -- Select increment by default
                 end if;
             end if;
             if instr_cycle(1) = '1' then
                 -- Output read/write if touching memory
                 if reg_access_enable = '0' then
-                    DataRd <= clock or IR(9);
-                    DataWr <= clock or not IR(9);
-                    DBEnableOutput <= IR(9); -- Give up control of the DB if reading
+                    DataRd <= clock or IR(9);    -- Output read on low clock + load
+                    DataWr <= clock or not IR(9);-- Output write on lock clock + store
+                    DBEnableOutput <= IR(9);     -- Give up control of the DB if reading
                 end if;
 
+                -- On a load, or a store to register space, we must write to a register.
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
                     RegWr <= '1';
                 end if;
 
+                -- If we're doing a post increment, we want to update the address register.
+                -- Increment is selected by default.
                 if IR(1 downto 0) = "01" then -- post-increment
                     AddrRegWr <= '1';
                 end if;
 
+                -- If we're doing a push, we want to update the address register
                 if IR(3 downto 0) = "1111" and IR(9) = '1' then -- post-decrement for push
-                    N_Inc <= '1';
+                    N_Inc <= '1';     -- Do a decrement
                     AddrRegWr <= '1';
                 end if;
             end if;
@@ -763,7 +770,7 @@ begin
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -778,23 +785,22 @@ begin
             -- Use the immediate offset
             N_OffsetMask <= '1';
 
-            if IR(9) = '0' then -- Load
-                if reg_access_enable = '1' then
-                    -- Load from registers
-                    RegASel <= reg_index; 
-                end if;
-            else                -- Store
-                if reg_access_enable = '1' then
-                    -- Load from registers
-                    RegWrSel <= reg_index;
+            -- If we are loading/storing from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                if IR(9) = '0' then
+                    -- On a load, read from the correct register.
+                    RegASel <= reg_index;
+                else
+                    -- On a store, write to the correct register.
+                    RegWRSel <= reg_index;
                 end if;
             end if;
 
             -- Select AddrReg
             if IR(3) = ADDR_REG_SEL_Y(1) then -- Y
                 AddrRegSel <= ADDR_REG_SEL_Y;
-            end if;
-            if IR(3) = ADDR_REG_SEL_Z(1) then -- Z
+            else                              -- Z
                 AddrRegSel <= ADDR_REG_SEL_Z;
             end if;
 
@@ -802,11 +808,12 @@ begin
             if instr_cycle(1) = '1' then
                 -- Output read/write if touching memory
                 if reg_access_enable = '0' then
-                    DataRd <= clock or IR(9);
-                    DataWr <= clock or not IR(9);
-                    DBEnableOutput <= IR(9); -- Give up control of the DB if reading
+                    DataRd <= clock or IR(9);    -- Output read on low clock + load
+                    DataWr <= clock or not IR(9);-- Output write on lock clock + store
+                    DBEnableOutput <= IR(9);     -- Give up control of the DB if reading
                 end if;
 
+                -- On a load, or a store to register space, we must write to a register.
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
                     RegWr <= '1';
                 end if;
@@ -818,7 +825,7 @@ begin
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough
             Subtract        <= '0';             -- Not subtracting
-            CarryInControl  <= "00";            -- No carry influence
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
@@ -833,15 +840,15 @@ begin
             -- Tell DataMAU to output immediate.
             OutputImmediate <= '1';
 
-            if IR(9) = '0' then -- Load
-                if reg_access_enable = '1' then
-                    -- Load from registers
+            -- If we are loading/storing from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                if IR(9) = '0' then
+                    -- On a load, read from the correct register.
                     RegASel <= reg_index;
-                end if;
-            else                -- Store
-                if reg_access_enable = '1' then
-                    -- Store to registers
-                    RegWrSel <= reg_index;
+                else
+                    -- On a store, write to the correct register.
+                    RegWRSel <= reg_index;
                 end if;
             end if;
 
@@ -849,11 +856,12 @@ begin
             if instr_cycle(2) = '1' then
                 -- Output read/write if touching memory
                 if reg_access_enable = '0' then
-                    DataRd <= clock or IR(9);
-                    DataWr <= clock or not IR(9);
-                    DBEnableOutput <= IR(9); -- Give up control of the DB if reading
+                    DataRd <= clock or IR(9);    -- Output read on low clock + load
+                    DataWr <= clock or not IR(9);-- Output write on lock clock + store
+                    DBEnableOutput <= IR(9);     -- Give up control of the DB if reading
                 end if;
 
+                -- On a load, or a store to register space, we must write to a register.
                 if (IR(9) = '0') or ((IR(9) = '1') and reg_access_enable = '1') then
                     RegWr <= '1';
                 end if;

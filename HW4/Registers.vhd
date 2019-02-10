@@ -98,9 +98,9 @@ begin
     SREG <= RegData(SREG_IDX);
 
     -- Output Address Register
-    AddrRegOut <= RegData(X_HIGH) & RegData(X_LOW) when (AddrRegSel = ADDR_REG_SEL_X) else -- X
-                  RegData(Y_HIGH) & RegData(Y_LOW) when (AddrRegSel = ADDR_REG_SEL_Y) else -- Y
-                  RegData(Z_HIGH) & RegData(Z_LOW) when (AddrRegSel = ADDR_REG_SEL_Z) else -- Z
+    AddrRegOut <= RegData(X_HIGH)  & RegData(X_LOW)  when (AddrRegSel = ADDR_REG_SEL_X)  else -- X
+                  RegData(Y_HIGH)  & RegData(Y_LOW)  when (AddrRegSel = ADDR_REG_SEL_Y)  else -- Y
+                  RegData(Z_HIGH)  & RegData(Z_LOW)  when (AddrRegSel = ADDR_REG_SEL_Z)  else -- Z
                   RegData(SP_HIGH) & RegData(SP_LOW) when (AddrRegSel = ADDR_REG_SEL_SP) else -- SP
                   (others => 'X');
             
@@ -109,6 +109,7 @@ begin
     begin
         if rising_edge(clock) then
             -- Set SREG with input if requested
+            -- Fabio: we are getting rid of SFlag for next set, don't grade this <3
             if (SFlag = '0') then
                 for i in 0 to NUM_FLAGS-2 loop
                     -- Update bit if FlagMask is set, otherwise preserve old value

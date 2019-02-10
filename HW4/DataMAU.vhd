@@ -35,10 +35,11 @@
 --      NewAddrData     (std_logic_vector(DATA_AB_SIZE-1 downto 0)) - Updated address reg
 --
 -- Revision History:
---      01/24/19    David Kornfeld  Initial Revision
---      02/05/19    David Kornfeld  Updated documentation and added input/output ports
---      02/05/19    David Kornfeld  Finished first draft and got to compile
---      02/07/19    David Kornfeld  Latched ProgDB input
+--      01/24/19    David Kornfeld   Initial Revision
+--      02/05/19    David Kornfeld   Updated documentation and added input/output ports
+--      02/05/19    David Kornfeld   Finished first draft and got to compile
+--      02/07/19    David Kornfeld   Latched ProgDB input
+--      02/08/19    Bobby Abrahamson Fixed error in PreIncrement calculation
 ----------------------------------------------------------------------------------------------------
 library  ieee;
 use ieee.numeric_std.all;

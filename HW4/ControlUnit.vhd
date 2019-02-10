@@ -38,12 +38,8 @@
 --        RegBSel              (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Register B Select lines
 --        RegWrSel             (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Reg Enable decoder lines
 --        RegWr                (std_logic)                                  - Reg (write) Enable
---        AddrDataIn           (std_logic_vector(2*NUM_BITS-1 downto 0))    - Input data for address
---                                                                              registers
 --        AddrRegSel           (std_logic_vector(Log2(NUM_ADDR_REG)-1) downto 0)) - Address register 
 --                                                                                  output select
---        AddrRegWrSel         (std_logic_vector(Log2(NUM_ADDR_REG)-1) downto 0)) - Address register 
---                                                                              enable decoder lines
 --        AddrRegWr            (std_logic)                                - Address Reg (write) En
 --        SFlag                (std_logic)                                - Indicate if touching bit 
 ---                                                                         in SREG
@@ -78,6 +74,13 @@
 --        N_OffsetMask         (std_logic)                      - Active low mask for offset inp.
 --        PrePostSel           (std_logic)                      - Select between pre-post inc
 --                                                                    part of PC
+--        OutputImmediate      (std_logic)                      - Select whether to DataMAU should
+--                                                                    output ProgDB immediate
+--                                                                    instead of AddrReg
+--        ImmediateAddrLatch   (std_logic)                      - Select whether the DataMAU should 
+--                                                                    latch ProgDB on the current
+--                                                                    clock (for use on next
+--                                                                    cycle of STS/LDS).
 --
 -- Revision History:
 --      01/24/19    David Kornfeld      Initial Revision
@@ -90,6 +93,8 @@
 --      02/08/19    David Kornfeld      Updated documentation and fixed glitches in LD/ST
 --      02/08/19    David Kornfeld      Removed generics
 --      02/08/19    David Kornfeld      Added immediate data routing
+--      02/08/19    Bobby Abrahamson    Fixed errors in AddrRegSel decoding.
+--      02/09/19    Bobby Abrahamson    Optimized, updated documentation.
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

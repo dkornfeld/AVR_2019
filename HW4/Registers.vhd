@@ -15,9 +15,9 @@
 --        RegIn            (std_logic_vector(NUM_BITS-1 downto 0))      - Input register data
 --        AddrRegIn        (std_logic_vector(DATA_AB_SIZE-1 downto 0);) - Input Addr Register
 --        Control Signals: #################################################################
---        RegASel          (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Register A Select lines
---        RegBSel          (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Register B Select lines
---        RegWrSel         (std_logic_vector(Log2(NUM_REG)-1 downto 0)) - Reg Enable decoder lines
+--        RegASel          (std_logic_vector(Log2(NUM_REGS)-1 downto 0))- Register A Select lines
+--        RegBSel          (std_logic_vector(Log2(NUM_REGS)-1 downto 0))- Register B Select lines
+--        RegWrSel         (std_logic_vector(Log2(NUM_REGS)-1 downto 0))- Reg Enable decoder lines
 --        RegWr            (std_logic)                                  - Reg (write) Enable
 --        AddrRegSel       (std_logic_vector(1 downto 0))               - Select X vs Y vs Z vs SP
 --        AddrRegWr        (std_logic)                                  - Enable write to Addr Reg

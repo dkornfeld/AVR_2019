@@ -11,6 +11,7 @@
 --      01/31/19    David Kornfeld      Added constants for ControlUnit FSM
 --      02/08/19    David Kornfeld      Added constants for control in ControlUnit
 --      02/08/19    David Kornfeld      Moved constants for ALU
+--      02/09/19    David Kornfeld      Changed maximum instruction clocks and updated documentation
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

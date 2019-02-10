@@ -32,7 +32,7 @@
 --      02/05/19    David Kornfeld   Finished first draft and got to compile
 --      02/07/19    David Kornfeld   Latched ProgDB input
 --      02/08/19    Bobby Abrahamson Fixed error in PreIncrement calculation
---      02/09/19    David Kornfeld  Updated documentation
+--      02/09/19    David Kornfeld   Updated documentation
 
 ----------------------------------------------------------------------------------------------------
 library  ieee;

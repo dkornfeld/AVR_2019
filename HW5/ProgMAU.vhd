@@ -15,8 +15,7 @@
 --      Offset          (std_logic_vector(PC_WIDTH-1 downto 0))     - ControlUnit-resized
 --                                                                      word offset from
 --                                                                      an instruction
---      ImmediateAddr   (std_logic_vector(PC_WIDTH-1 downto 0))     - Input from ProgDB for
---                                                                      word-loads
+--      RegZ            (std_logic_vector(PC_WIDTH-1 downto 0))     - Input from Z address register
 --      AddrDataIn      (std_logic_vector(PC_WIDTH-1 downto 0))     - Input from address registers
 --      DataDB          (std_logic_vector(NUM_BITS-1 downto 0))     - Input from DataDB for RTS
 --      Control Signals: ###########################################################################
@@ -44,7 +43,7 @@ entity ProgMAU is
     port        (
         clock           :   in  std_logic;
         Offset          :   in  std_logic_vector(PC_WIDTH-1 downto 0);
-        ImmediateAddr   :   in  std_logic_vector(PC_WIDTH-1 downto 0);
+        RegZ            :   in  std_logic_vector(PC_WIDTH-1 downto 0);
         AddrDataIn      :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
         DataDB          :   in  std_logic_vector(NUM_BITS-1 downto 0);
         PCUpdateEn      :   in  std_logic;
@@ -63,9 +62,6 @@ architecture data_flow of ProgMAU is
     -- For displacing the DataDB input for CALL/RTS
     constant ZEROS_8:   std_logic_vector(NUM_BITS-1 downto 0) := (others => '0');
 
-    -- Latched version of the ProgDB for CALL and JMP
-    signal Latched_Immediate_Addr   :   std_logic_vector(PC_WIDTH-1 downto 0);
-
     -- Shifted version of DataDB input for RTS recovery
     signal HiLoSelectedDataDB       :   std_logic_vector(PC_WIDTH-1 downto 0);
 
@@ -83,14 +79,6 @@ architecture data_flow of ProgMAU is
     signal AdderInB         :   std_logic_vector(PC_WIDTH-1 downto 0);
     signal MainAdderCarries :   std_logic_vector(PC_WIDTH-1 downto 0);
 begin
-
-    -- Latch the ProgDB into a register to hold it for JMP/CALL ####################################
-    process(clock)
-    begin
-        if falling_edge(clock) then -- Give the most time we possibly can
-            Latched_Immediate_Addr <= ImmediateAddr;
-        end if;
-    end process;
 
     -- Latch the PC on the rising edge of clock ####################################################
     process(clock)
@@ -112,7 +100,7 @@ begin
                     Offset                  when PCControl = "001" else
                     AddrDataIn              when PCControl = "010" else
                     HiLoSelectedDataDB      when PCControl = "011" else
-                    Latched_Immediate_Addr; -- when PCControl = "100" Same output for all others to
+                    RegZ;                   -- when PCControl = "100" Same output for all others to
                                             -- save space
 
     -- Mask the PC's input to the adder for loads ##################################################

@@ -21,7 +21,9 @@
 --    	FSRControl   	(std_logic_vector(3 downto 0))    	- F block and shifter control lines
 --    	Subtract      	(std_logic)                       	- Command subtraction from adder
 --   	CarryInControl 	(std_logic_vector(1 downto 0))   	- Mux lines for carry in to adder
---  	ALUResultSel 	(std_logic)                      	- Select between adder and SR
+--  	ALUResultSel 	(std_logic)                      	- Select between adder and SR when not
+--                                                              multiplying. Otherwise select low 
+--                                                              (0) or high (1) byte of the result
 --  	TSCBitSelect 	(std_logic_vector(2 downto 0)) 		- Select which register bit
 --                                                        		for loading/storing T.
 --                                                     			Doubles for selecting which bit
@@ -33,6 +35,8 @@
 --                                                           	bit at all
 --      DouleZero       (std_logic)                        - Indicates that zero flag should only be
 --                                                              set if it was set previously
+--      MulSelect       (std_logic)                        - Indicates if a multiply is done and
+--                                                              changes the meaning of ALUResultSel
 --        
 -- Outputs:
 --		Result     	(std_logic_vector(NUM_BITS-1 downto 0))  	- Output from ALU
@@ -92,6 +96,7 @@ architecture data_flow of ALU is
     signal CarryIn     	:    std_logic;
     signal CarryOut    	:    std_logic;
     signal SRout        :    std_logic_vector(NUM_BITS-1 downto 0);
+    signal MULResult    :    std_logic_vector(2*NUM_BITS-1 downto 0);
     signal RegIndex    	:    integer := 0; 	-- Initialized purely for simulation reasons
                                          	-- Protects against out-of-range indexing
                                         	-- from undefineds
@@ -179,6 +184,9 @@ begin
         end if;
     end process;
     
+    -- Multiplier ##################################################################################
+    
+
     -- Output selection and loading to/from bits ###################################################
     
     -- Decode the binary to an index we can use

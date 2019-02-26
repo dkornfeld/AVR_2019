@@ -15,8 +15,7 @@
 -- Inputs:
 --  	OperandA  	(std_logic_vector(NUM_BITS-1 downto 0))        - Input A to ALU
 --     	OperandB    (std_logic_vector(NUM_BITS-1 downto 0))        - Input A to ALU
---     	CarryFlag  	(std_logic)                                    - Carry flag from the SREG
---     	TFlag     	(std_logic)                                    - T Flag from the SREG
+--      SREG        (std_logic_vector(NUM_FLAGS-1 downto ))        - Status register from RegArray
 --      Control Signals: ###########################################################################
 --   	N_AddMask   	(std_logic)                     	- Active low mask for Operand A
 --    	FSRControl   	(std_logic_vector(3 downto 0))    	- F block and shifter control lines
@@ -32,6 +31,8 @@
 --                                                     			resetting the selected bit
 --      SettingClearing (std_logic)                        - Indicates if we're changing a
 --                                                           	bit at all
+--      DouleZero       (std_logic)                        - Indicates that zero flag should only be
+--                                                              set if it was set previously
 --        
 -- Outputs:
 --		Result     	(std_logic_vector(NUM_BITS-1 downto 0))  	- Output from ALU
@@ -46,6 +47,7 @@
 --   	02/02/19    David Kornfeld   	Changed T bit signals and added bit setting/clearing
 --      02/04/19    David Kornfeld      Updated documentation
 --      02/08/19    David Kornfeld      Updated documentation
+--      02/24/19    David Kornfeld      Added whole SREG input and added double zero control signal
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -60,8 +62,7 @@ entity ALU is
     port         (
         OperandA       	:    in   	std_logic_vector(NUM_BITS-1 downto 0);
         OperandB        :    in   	std_logic_vector(NUM_BITS-1 downto 0);
-        CarryFlag       :    in   	std_logic;
-        TFlag           :    in   	std_logic;
+        SREG            :    in     std_logic_vector(NUM_FLAGS-1 downto 0);
         N_AddMask       :    in   	std_logic;
         FSRControl      :    in   	std_logic_vector(3 downto 0);
         Subtract        :    in   	std_logic;
@@ -71,6 +72,7 @@ entity ALU is
         TLoad           :    in   	std_logic;
         BitSetClear     :    in   	std_logic;
         SettingClearing :    in   	std_logic;
+        DoubleZero      :    in     std_logic;
         Result          :    out    std_logic_vector(NUM_BITS-1 downto 0);
         NewFlags        :    out  	std_logic_vector(NUM_FLAGS-2 downto 0)
     );
@@ -93,10 +95,16 @@ architecture data_flow of ALU is
     signal RegIndex    	:    integer := 0; 	-- Initialized purely for simulation reasons
                                          	-- Protects against out-of-range indexing
                                         	-- from undefineds
+    signal CarryFlag    :    std_logic;     -- Flag from SREG
+    signal TFlag        :    std_logic;     -- Flag from SREG
     
     signal pre_result 	:    std_logic_vector(NUM_BITS-1 downto 0);
     signal pre_flags  	:    std_logic_vector(NUM_FLAGS-2 downto 0);
 begin
+    -- Connect flag signals from SREG ##############################################################
+    CarryFlag   <= SREG(FLAG_C);
+    TFlag       <= SREG(FLAG_T);
+
     -- F Block #####################################################################################
     -- Bit-wise logical operatins depending on positions of FSRControl. Fout receives:
     --        0000 -> Zero Vector
@@ -128,10 +136,10 @@ begin
     AdderInB <= Fout;
     
     -- Multiplex the CarryIn
-    CarryIn <=  '0'             when CarryInControl = "00" else -- Normal
-                '1'             when CarryInControl = "01" else -- Force + 1
-                CarryFlag       when CarryInControl = "10" else -- Use Carry Flag
-                not CarryFlag   when CarryInControl = "11";     -- Use its inv.
+    CarryIn <=  '0'             when CarryInControl = CARRY_IN_ZERO     else -- Normal
+                '1'             when CarryInControl = CARRY_IN_ONE      else -- Force + 1
+                CarryFlag       when CarryInControl = CARRY_IN_CFLAG    else -- Use Carry Flag
+                not CarryFlag   when CarryInControl = CARRY_IN_NCFLAG;       -- Use its inv.
     
     -- Initialize the generation loop
     Carries(0) <= CarryIn;
@@ -157,15 +165,15 @@ begin
         SRout(NUM_BITS-2 downto 0) <= OperandA(NUM_BITS-1 downto 1);
         
         case FSRControl is
-            when "0110"     => SRout(NUM_BITS-1)    <= '0';                     -- LSR
-            when "0101"     => SRout(NUM_BITS-1)    <= OperandA(NUM_BITS-1);    -- ASR
-            when "0111"     => SRout(NUM_BITS-1)    <= CarryFlag;               -- ROR
-            when "0010"     => SRout(NUM_BITS-1)    <= OperandA((NUM_BITS/2)-1);-- SWAP
-            when others     => SRout(NUM_BITS-1)    <= '1';                     -- Others
+            when ALU_FSR_LSR     => SRout(NUM_BITS-1)    <= '0';                     -- LSR
+            when ALU_FSR_ASR     => SRout(NUM_BITS-1)    <= OperandA(NUM_BITS-1);    -- ASR
+            when ALU_FSR_ROR     => SRout(NUM_BITS-1)    <= CarryFlag;               -- ROR
+            when ALU_FSR_SWAP    => SRout(NUM_BITS-1)    <= OperandA((NUM_BITS/2)-1);-- SWAP
+            when others          => SRout(NUM_BITS-1)    <= '1';                     -- Others
         end case;
         
         -- But if we are swapping
-        if std_match(FSRControl, "0010") then -- Swap the "nibbles"
+        if std_match(FSRControl, ALU_FSR_SWAP) then -- Swap the "nibbles"
             SRout(NUM_BITS-2 downto NUM_BITS/2)     <= OperandA((NUM_BITS/2)-2 downto 0);
             SRout((NUM_BITS/2) - 1 downto 0)        <= OperandA(NUM_BITS-1 downto NUM_BITS/2);
         end if;
@@ -199,8 +207,11 @@ begin
     
     -- Flag computation ############################################################################
     
-    -- Z Flag is just when result is all zeros
-    pre_flags(FLAG_Z) <=    '1' when std_match(pre_result, ZEROS) else
+    -- Z Flag is just when result is all zeros. Also might need to take previous zero flag into 
+    --  account for 2-clock instructions and CPC
+    pre_flags(FLAG_Z) <=    '1' when (pre_result = ZEROS) and 
+                                ((DoubleZero='0') or (SREG(FLAG_Z)='1')) else   -- See if previous
+                                                                                -- Z Flag is needed
                             '0';
                                 
     -- N Flag is just the high bit of the result
@@ -216,7 +227,7 @@ begin
     -- V Flag. Signed Overflow (carry into high bit != carry out of high bit), 
     --          is zero (0) for logical operations and N xor C for shift operations
     pre_flags(FLAG_V) <=    -- Logical
-                            '0' when (N_AddMask='0' and ALUResultSel='0') else
+                            '0' when (N_AddMask='0' and Subtract='0' and ALUResultSel='0') else
                             -- Shift Operations
                             pre_flags(FLAG_N) xor pre_flags(FLAG_C) when ALUResultSel='1' else
                             -- Else we can use the carries. Xor is true when !=

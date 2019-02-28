@@ -61,6 +61,8 @@ end ProgMAU;
 ----------------------------------------------------------------------------------------------------
 architecture data_flow of ProgMAU is
     -- For incrementing the PC
+    constant ZERO   :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(0,
+                                                                                    PC_WIDTH));
     constant ONE    :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(1, 
                                                                                     PC_WIDTH));
     constant TWO    :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(2,
@@ -116,7 +118,8 @@ begin
 
     -- Mux the Non-PC input to the adder ###########################################################
     
-    AdderInB    <=  ONE                     when PCControl = PC_UPDATE_ONE      else
+    AdderInB    <=  ZERO                    when PCControl = PC_UPDATE_ZERO     else
+                    ONE                     when PCControl = PC_UPDATE_ONE      else
                     TWO                     when PCControl = PC_UPDATE_TWO      else
                     Offset                  when PCControl = PC_UPDATE_OFFSET   else
                     Latched_ProgDB          when PCControl = PC_UPDATE_PROGDB   else

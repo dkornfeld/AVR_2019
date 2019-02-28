@@ -79,9 +79,9 @@ architecture  ROM  of  PROG_MEMORY  is
                                        X"E3FF", X"1F01", X"1F02", X"1F21",
                                        X"1F95", X"1D60", X"0F95", X"0F01",
                                        X"0F24", X"0D70", X"9600", X"9650",
-                                       X"231C", X"231D", X"220F", X"7FCF",
+                                       X"231C", X"231D", X"20D0", X"7FCF", -- Glen had 220F as third insn, which is AND R0, R31 (he meant R13, R0)
                                        X"7F0F", X"7FDF", X"9505", X"95B5",
-                                       X"95E5", X"95D5", X"9500", X"9500",
+                                       X"95E5", X"9485", X"9500", X"9500", -- Glen had 95D5 as 2nd insn, which is ASR R29 (he meant R8)
                                        X"95C0", X"95C0", X"1710", X"175A",
                                        X"15F3", X"0710", X"0751", X"0715",
                                        X"0750", X"E4E0", X"E7FF", X"371F",
@@ -116,7 +116,7 @@ architecture  ROM  of  PROG_MEMORY  is
                                        X"ECE0", X"9000", X"AAAA", X"9010",
                                        X"5555", X"907C", X"909E", X"914D",
                                        X"915C", X"9069", X"8178", X"916A",
-                                       X"8CFE", X"9041", X"80D0", X"9022",
+                                       X"A0F8", X"9041", X"80D0", X"9022", -- Glen had 8CFE as 1st insn, which is LDD Y+30 (he meant +32)
                                        X"AD14", X"940C", X"00F2", X"E56A",
                                        X"E57A", X"C002", X"EA85", X"CFFB",
                                        X"EFE9", X"E0F0", X"9409", X"E0B0",

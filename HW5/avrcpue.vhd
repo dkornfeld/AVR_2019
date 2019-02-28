@@ -134,6 +134,9 @@ architecture data_flow of AVR_CPU is
 
     signal PC               :   std_logic_vector(PC_WIDTH-1 downto 0);
 
+    -- For delaying the low byte of the PC for CALLs
+    signal delayedPCLow     :   std_logic_vector((PC_WIDTH/2)-1 downto 0);
+
     -- For muxing from the PC
     signal HiLoSelectedPC   :   std_logic_vector(NUM_BITS-1 downto 0);
 
@@ -148,8 +151,15 @@ begin
                     IR_Immediate;
 
     -- Mux the DataDB ##############################################################################
+    process(clock) 
+    begin
+        if rising_edge(clock) then
+            delayedPCLow <= PC(NUM_BITS-1 downto 0);
+        end if;
+    end process;
+
     HiLoSelectedPC  <=  PC(PC_WIDTH-1 downto NUM_BITS)  when HiLoSel = '1' else
-                        PC(NUM_BITS-1 downto 0);
+                        delayedPCLow;
 
     PreDataDB   <=  Result      when DBSel = '0' else   -- ALU Output
                     HiLoSelectedPC;                     -- PC output

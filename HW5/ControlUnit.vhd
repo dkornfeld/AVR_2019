@@ -301,7 +301,7 @@ begin
             OPBInSel        <= '1';
 
             -- Force top two bits of immediate to 0.
-            IR_Immediate(NUM_BITS-1 downto NUM_BITS-2) <= "00";
+            IR_Immediate(NUM_BITS-1 downto NUM_BITS-4) <= "00" & IR(7 downto 6);
             
             -- The even registers for A and B are encoded in
             -- bits 5 and 4 and can easily be turned into
@@ -648,6 +648,9 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+
+            -- Zero flag preserved if 0
+            DoubleZero <= '1';
         end if;
         
         if std_match(IR, OpSBCI) then
@@ -661,6 +664,9 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+
+            -- Zero flag preserved if 0
+            DoubleZero <= '1';
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
@@ -686,7 +692,7 @@ begin
             OPBInSel        <= '1';
 
             -- Force top two bits of immediate to 0.
-            IR_Immediate(NUM_BITS-1 downto NUM_BITS-2) <= "00";
+            IR_Immediate(NUM_BITS-1 downto NUM_BITS-4) <= "00" & IR(7 downto 6);
             
             -- The even registers for A and B are encoded in
             -- bits 5 and 4 and can easily be turned into
@@ -1001,10 +1007,18 @@ begin
             -- Don't update a register.
             RegWr <= '0';
 
-            -- Update PC on clock 2 with latched ProgDB.
+            -- Only update PC on instruction cycle 1.
             PCUpdateEn <= instr_cycle(1);
-            PCControl <= PC_UPDATE_PROGDB;
-            N_PCLoad <= '0';
+
+            -- Update PC on clock 2 with latched ProgDB.
+            if instr_cycle(1) = '1' then
+                PCControl <= PC_UPDATE_PROGDB;
+                N_PCLoad <= '0';
+            end if;
+            if instr_cycle(2) = '1' then
+                -- Fetch instruction without updating PC.
+                PCControl <= PC_UPDATE_ZERO;
+            end if;
 
             -- Take three cycles
             reset_instr_counter <= instr_cycle(2);
@@ -1024,18 +1038,25 @@ begin
             -- Don't update a register.
             RegWr <= '0';
 
-            -- Update PC on clock 1.
-            PCUpdateEn <= instr_cycle(0);
+            -- Update PC on clock 1 (and clock 2, if RJMP).
+            PCUpdateEn <= instr_cycle(0) or IR(14);
 
-            if IR(14) = '1' then
-                -- RJMP
-                PCControl <= PC_UPDATE_OFFSET;
-                -- Set PCOffset = sign extended IR offset
-                PCOffset <= std_logic_vector(to_signed(to_integer(signed(IR(11 downto 0))), PCOffset'length));
-            else
-                -- IJMP
-                PCControl <= PC_UPDATE_REGZ;
-                N_PCLoad <= '0';
+            if instr_cycle(0) = '1' then
+                if IR(14) = '1' then
+                    -- RJMP
+                    PCControl <= PC_UPDATE_OFFSET;
+                    -- Set PCOffset = sign extended IR offset
+                    PCOffset <= std_logic_vector(to_signed(to_integer(signed(IR(11 downto 0))), PCOffset'length));
+                else
+                    -- IJMP
+                    PCControl <= PC_UPDATE_REGZ;
+                    N_PCLoad <= '0';
+                end if;
+            end if;
+
+            -- On cycle 2 of an IJMP, we want to lock the PC on ProgAB
+            if (instr_cycle(1) = '1') and (IR(14) = '0') then
+                PCControl <= PC_UPDATE_ZERO;
             end if;
 
             -- Take two cycles
@@ -1060,15 +1081,15 @@ begin
             -- Take four cycles
             reset_instr_counter <= instr_cycle(3);
 
-            -- Update PC on clock 1, 3.
-            PCUpdateEn <= (instr_cycle(0) or instr_cycle(2));
+            -- Update PC on clock 1, 2, 3.
+            PCUpdateEn <= (not instr_cycle(3));
 
             -- Select AddrReg = SP
             AddrRegSel <= ADDR_REG_SEL_SP;
 
             -- Write PC high, then PC low
-            HiLoSel    <= instr_cycle(1);
-            DBSel      <= instr_cycle(1) or instr_cycle(2);
+            HiLoSel    <= instr_cycle(2);
+            DBSel      <= instr_cycle(2) or instr_cycle(3);
 
             -- If we are loading from registers
             -- we should update the selects to route correctly.
@@ -1078,7 +1099,7 @@ begin
             end if;
 
             -- Clock dependent selections
-            if (instr_cycle(1) or instr_cycle(2)) = '1' then
+            if (instr_cycle(2) or instr_cycle(3)) = '1' then
                 if reg_access_enable = '0' then
                     -- Output read/write if touching memory
                     DataWr <= clock;       -- Output write on lock clock + store
@@ -1096,6 +1117,10 @@ begin
                 -- Update PC with latched ProgDB
                 PCControl  <= PC_UPDATE_PROGDB;
                 N_PCLoad   <= '0';
+            end if;
+            if instr_cycle(3) = '1' then
+                -- Hold PC locked in ProgAB
+                PCControl <= PC_UPDATE_ZERO;
             end if;
         end if;
 
@@ -1117,8 +1142,8 @@ begin
             -- Take three cycles
             reset_instr_counter <= instr_cycle(2);
 
-            -- Update PC on clock 2.
-            PCUpdateEn <= instr_cycle(1);
+            -- Update PC on clock 1/2.
+            PCUpdateEn <= (not instr_cycle(2));
 
             -- Select AddrReg = SP
             AddrRegSel <= ADDR_REG_SEL_SP;
@@ -1161,6 +1186,10 @@ begin
                     N_PCLoad <= '0';
                 end if;
             end if;
+             -- On cycle 3, we want to lock the PC on ProgAB
+            if (instr_cycle(2) = '1') then
+                PCControl <= PC_UPDATE_ZERO;
+            end if;
         end if;
 
         if (std_match(IR, OpRET) or std_match(IR, OpRETI)) then
@@ -1193,18 +1222,19 @@ begin
 
             -- Update PC on clocks 2/3 with DataDB
             PCUpdateEn <= instr_cycle(1) or instr_cycle(2);
-            PCControl  <= PC_UPDATE_DATADB;
-            N_PCLoad   <= instr_cycle(2);
+            N_PCLoad   <= (not instr_cycle(1));
             HiLoSel    <= instr_cycle(2); 
 
             -- Clock dependent selections
-            if (instr_cycle(0) or instr_cycle(1)) = '1' then
-               -- Pre-increment for pop
+            if (instr_cycle(1) or instr_cycle(2)) = '1' then
+                -- Load PC from DataDB (popped return address)
+                PCControl <= PC_UPDATE_DATADB;
+
+                -- Pre-increment for pop
                 PrePostSel <= '1';  -- Select Pre
                 AddrRegWr  <= '1';  -- Update address register
                                     -- Select increment by default
-            end if;
-            if (instr_cycle(1) or instr_cycle(2)) = '1' then
+
                 -- Output read/write if touching memory
                 if reg_access_enable = '0' then
                     DataRd <= clock;       -- Output read on low clock + load
@@ -1212,6 +1242,8 @@ begin
                 end if;
             end if;
             if instr_cycle(3) = '1' then
+                -- Hold PC locked in ProgAB
+                PCControl <= PC_UPDATE_ZERO;
                 -- If RETI, set interrupt flag.
                 if IR(4) = '1' then
                     -- ALU
@@ -1241,9 +1273,6 @@ begin
 
             -- Don't update a register by default.
             RegWr <= '0';
-
-            -- Only update PC on cycle 0.
-            PCUpdateEn <= instr_cycle(0);
 
             -- By default, take 1 cycle.
             reset_instr_counter <= '1';

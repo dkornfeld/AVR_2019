@@ -61,8 +61,11 @@
 --        PCUpdateEn           (std_logic)                      - Enable PC to update
 --        N_PCLoad             (std_logic)                      - Active low load control for PC
 --        PCControl            (std_logic_vector(2 downto 0))   - Mux input to adder control
---        HiLoSel              (std_logic)                      - Selects if loading high or low
---                                                                    part of PC
+--        HiLoSel              (std_logic)                      - Selects if loading high or lo
+--        PMAUProgDBLatch      (std_logic)                     - Select whether the DataMAU should 
+--                                                                    latch ProgDB on the current
+--                                                                    clock (for use on next
+--                                                                    cycles of CALL/JMP).
 --        Data Memory Access Unit Control Signals: #################################################
 --        N_Inc                (std_logic)                      - Active low increment select
 --        N_OffsetMask         (std_logic)                      - Active low mask for offset inp.
@@ -143,6 +146,7 @@ entity ControlUnit is
         PCControl           :    out    std_logic_vector(2 downto 0);
         HiLoSel             :    out    std_logic;
         PCOffset            :    out    std_logic_vector(PC_WIDTH-1 downto 0);
+        PMAUProgDBLatch     :    out    std_logic;
         -- DMAU
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
@@ -205,7 +209,8 @@ begin
     -- And offsets get pulled out this way
     IR_Offset <= IR(13) & IR(11 downto 10) & IR(2 downto 0);
 
-    -- We only want to latch ProgDB on cycle 2.
+    -- We only want to latch ProgDB on cycle 2 for DMAU, cycle 1 for PMAU.
+    PMAUProgDBLatch <= instr_cycle(0);
     ImmediateAddrLatch <= instr_cycle(1);
     
     -- Instruction decoding
@@ -991,13 +996,10 @@ begin
             -- Don't update a register.
             RegWr <= '0';
 
-            -- Update PC on clock 2.
+            -- Update PC on clock 2 with latched ProgDB.
             PCUpdateEn <= instr_cycle(1);
-            PCControl <= PC_UPDATE_ADDRDATA;
+            PCControl <= PC_UPDATE_PROGDB;
             N_PCLoad <= '0';
-
-            -- Tell DataMAU to output immediate.
-            OutputImmediate <= '1';
 
             -- Take three cycles
             reset_instr_counter <= instr_cycle(2);
@@ -1086,11 +1088,9 @@ begin
                 AddrRegWr <= '1';
             end if;
             if instr_cycle(2) = '1' then
-                -- Update PC with address
-                PCControl  <= PC_UPDATE_ADDRDATA;
+                -- Update PC with latched ProgDB
+                PCControl  <= PC_UPDATE_PROGDB;
                 N_PCLoad   <= '0';
-                -- Tell DataMAU to output immediate when loading PC.
-                OutputImmediate <= '1';
             end if;
         end if;
 

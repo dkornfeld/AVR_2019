@@ -86,7 +86,7 @@ package AVR_2019_constants is
     constant PC_UPDATE_ONE       :   std_logic_vector(2 downto 0) := "000";
     constant PC_UPDATE_TWO       :   std_logic_vector(2 downto 0) := "001";
     constant PC_UPDATE_OFFSET    :   std_logic_vector(2 downto 0) := "010";
-    constant PC_UPDATE_ADDRDATA  :   std_logic_vector(2 downto 0) := "011";
+    constant PC_UPDATE_PROGDB    :   std_logic_vector(2 downto 0) := "011";
     constant PC_UPDATE_DATADB    :   std_logic_vector(2 downto 0) := "100";
     constant PC_UPDATE_REGZ      :   std_logic_vector(2 downto 0) := "101";
 

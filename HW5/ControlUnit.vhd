@@ -560,6 +560,10 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZC;        -- Z, C
+
+            PreRegWrSel <= "000000000000000" & instr_cycle(1);
+
+            if 
         end if;
         
         if std_match(IR, OpNEG) then

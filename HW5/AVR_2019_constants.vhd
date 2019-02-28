@@ -90,10 +90,6 @@ package AVR_2019_constants is
     constant PC_UPDATE_DATADB    :   std_logic_vector(2 downto 0) := "100";
     constant PC_UPDATE_REGZ      :   std_logic_vector(2 downto 0) := "101";
 
-    constant ALU_FSR_SWAP        :   std_logic_vector(3 downto 0) := "0010";
-    constant ALU_FSR_ASR         :   std_logic_vector(3 downto 0) := ALU_FSR_NOT_B;
-    constant ALU_FSR_LSR         :   std_logic_vector(3 downto 0) := ALU_FSR_A_XOR_B;
-
 
     -- Constants for Addr Register readability
     constant X_LOW      :    integer := 26;
@@ -107,7 +103,7 @@ package AVR_2019_constants is
     
     -- Constant for specifying the SREG
     constant SREG_IDX     :    integer := 95;
-    constant SREG_IDX_SEL :    std_logic_vector(6 downto 0) := std_logic_vector(to_unsigned(SREG_IDX, SREG_IDX_SEL'length));
+    constant SREG_IDX_SEL :    std_logic_vector(6 downto 0) := std_logic_vector(to_unsigned(SREG_IDX, 7));
 
     -- Constants for Flags array readability
     constant FLAG_T    :    integer := 6;

@@ -61,7 +61,6 @@ architecture data_flow of ALU_TEST is
 
     -- Intermediate signals between internal units
     signal FlagMask         :   std_logic_vector(NUM_FLAGS-1 downto 0);
-    signal SFlag            :   std_logic;
     signal SREG             :   std_logic_vector(7 downto 0);
     signal NewFlags         :   std_logic_vector(6 downto 0);
     signal N_AddMask        :   std_logic;
@@ -77,15 +76,15 @@ architecture data_flow of ALU_TEST is
     signal MulSelect        :   std_logic;
     signal ALUResult        :   std_logic_vector(7 downto 0);
     signal RegAOutput       :   std_logic_vector(7 downto 0);
+    signal RegWr            :   std_logic;                              
+    signal RegWrSel         :   std_logic_vector(6 downto 0);           
+    signal RegASel          :   std_logic_vector(6 downto 0);           
+    signal RegBSel          :   std_logic_vector(6 downto 0);     
 
     -- Actual input to operand A of the ALU. Used for muxing below
     signal OperandAIn       :   std_logic_vector(7 downto 0);
 
     -- Unused Signals
-    signal RegWr            :   std_logic;                              
-    signal RegWrSel         :   std_logic_vector(6 downto 0);           
-    signal RegASel          :   std_logic_vector(6 downto 0);           
-    signal RegBSel          :   std_logic_vector(6 downto 0);     
     signal AddrRegIn        :   std_logic_vector(DATA_AB_SIZE-1 downto 0); 
     signal AddrRegSel       :   std_logic_vector(1 downto 0);       
     signal AddrRegWr        :   std_logic;             
@@ -98,7 +97,7 @@ architecture data_flow of ALU_TEST is
 begin
 
     -- Need to multiplex this, as normally Op A isn't open for input
-    OperandAIn  <= OperandA when SFlag = '0' else
+    OperandAIn  <= OperandA when (not (RegWrSel = SREG_IDX_SEL)) else
                     RegAOutput;
 
     -- No reset
@@ -131,19 +130,20 @@ begin
         clock       => clock,
 
         -- Unused Inputs
-        RegWr       => RegWr,
-        RegWrSel    => RegWrSel,
-        RegASel     => RegASel,
-        RegBSel     => RegBSel,  
         AddrRegIn   => AddrRegIn, 
         AddrRegSel  => AddrRegSel,       
         AddrRegWr   => AddrRegWr, 
         reset       => reset,         
         
         --SREG
-        SFlag       => SFlag,
         FlagMask    => FlagMask,
         SREG        => SREG,
+
+        -- Input from control unit
+        RegWr       => RegWr,
+        RegWrSel    => RegWrSel,
+        RegASel     => RegASel,
+        RegBSel     => RegBSel,  
 
         -- Input from ALU
         RegIn       => ALUResult, -- For direct loads of SREG or setting bits
@@ -160,6 +160,7 @@ begin
 
         -- Unused Inputs
         SREG            => SREG,
+        NewFlags        => NewFlags,
         ProgDB          => UnusedProgDB,
         DataAB          => UnusedDataAB,
 
@@ -177,7 +178,10 @@ begin
         MulSelect       => MulSelect,
 
         -- Register Control Signals
-        SFlag       => SFlag,
+        RegWr       => RegWr,
+        RegWrSel    => RegWrSel,
+        RegASel     => RegASel,
+        RegBSel     => RegBSel,  
         FlagMask    => FlagMask
     );
 

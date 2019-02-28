@@ -11,6 +11,7 @@
 --
 -- Inputs:
 --        clock                (std_logic)                               - System clock
+--        NewFlags             (std_logic_vector(NUM_FLAGS-2 downto 0))  - Flags from ALU
 --        SREG                 (std_logic_vector(NUM_FLAGS-1 downto 0))  - Status Register
 --        ProgDB               (std_logic_vector(INSTR_SIZE-1 downto 0)) - Program Data Bus
 --
@@ -52,6 +53,8 @@
 --                                                                bit at all
 --        DoubleZero      (std_logic)                        - Used to indicate double zero flag
 --                                                                to the ALU.
+--        MulSelect       (std_logic)                        - Indicates if a multiplication is 
+--                                                                being done
 --
 --        Program Memory Access Unit Control Signals: ##############################################
 --        PCUpdateEn           (std_logic)                      - Enable PC to update
@@ -94,8 +97,12 @@ use work.opcodes.all;
 ----------------------------------------------------------------------------------------------------
 entity ControlUnit is
     port         (
+        -- TEST TODO Remove This
+        IR                  :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
+
         -- Inputs
         clock               :    in     std_logic;
+        NewFlags            :    in     std_logic_vector(NUM_FLAGS-2 downto 0);
         SREG                :    in     std_logic_vector(NUM_FLAGS-1 downto 0);
         DataAB              :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0);
         ProgDB              :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
@@ -145,7 +152,7 @@ end ControlUnit;
 -----------------------------------------------------------------------------------------
 architecture data_flow of ControlUnit is
     -- Current Instruction Register
-    signal IR             :    std_logic_vector(INSTR_SIZE-1 downto 0);
+    --signal IR             :    std_logic_vector(INSTR_SIZE-1 downto 0);
 
     -- Storage for the current cycle count
     signal instr_cycle    :    std_logic_vector(MAX_INSTR_CLKS-1 downto 0); -- 1-hot cycle
@@ -173,7 +180,7 @@ begin
                 instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
 
                 -- Update IR on start of new instruction
-                IR <= ProgDB;
+                --IR <= ProgDB;
             else
                 -- Shift the bit left
                 instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';
@@ -182,10 +189,12 @@ begin
     end process;
 
     -- IO Select bits.
-    IOBSel <= (instr_cycle(0) = '1') and (std_match(IR, OpCBI) or std_match(IR, OpSBI) or
-                                          std_match(IR, OpIN));
-    IOWrSel <= (instr_cycle(0) = '1') and (std_match(IR, OpCBI) or std_match(IR, OpSBI) or
-                                           std_match(IR, OpOUT));
+    IOBSel <=   '1' when ((instr_cycle(0) = '1') and (std_match(IR, OpCBI) or std_match(IR, OpSBI) or
+                                                        std_match(IR, OpIN))) else
+                '0';
+    IOWrSel <=  '1' when ((instr_cycle(0) = '1') and (std_match(IR, OpCBI) or std_match(IR, OpSBI) or
+                                                        std_match(IR, OpOUT))) else
+                '0';
 
     -- Useful signals for memory-mapped access of registers. 
     reg_access_enable <= '1' when (to_integer(unsigned(DataAB)) < NUM_REGS) else '0';
@@ -364,7 +373,7 @@ begin
             BitSetClear     <= '0';             -- to 0
             -- Registers
             RegASel         <= SREG_IDX_SEL;    -- Directly write to SREG
-            PreRegWrSel        <= SREG_IDX_SEL;
+            PreRegWrSel     <= SREG_IDX_SEL;
             TSCBitSelect    <= IR(6 downto 4);  -- Flag select
             FlagMask        <= FLAGS_ALL;       -- ALU can set any flag
         end if;
@@ -1248,7 +1257,7 @@ begin
             ALUResultSel    <= '0';             -- Adder
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
-            BitSetClear     <= '0';             -- to 0
+            BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_NONE;      -- Don't change flags
 
             -- Don't update a register by default.
@@ -1257,15 +1266,18 @@ begin
             -- By default, take 1 cycle.
             reset_instr_counter <= '1';
 
-            -- Branch only if bit and condition match.
-            if (instr_cycle(0) = '1') and (IR(9) = TODO_WHAT_GOES_HERE(to_integer(unsigned(IR(2 downto 0))))) then
+            -- Branch only if bit and condition match. (bit passed through non-updated T flag)
+            if (instr_cycle(0) = '1') and (IR(9) = NewFlags(FLAG_T)) then
                 -- Don't update the instruction counter..
                 reset_instr_counter <= '0';
             end if;
             if (instr_cycle(1) = '1') then
                 -- Take three cycles if two-word instruction.
-                reset_instr_counter <= not (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or
-                                            std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL));
+                if (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
+                    reset_instr_counter <= '0';
+                else
+                    reset_instr_counter <= '1';
+                end if;
             end if;
         end if;
 
@@ -1287,15 +1299,15 @@ begin
             -- Branch only if bit and condition match.
             if (SREG(FLAG_Z) = '1') then
                 -- Reset on cycle 3 if a 2-word instruction, otherwise cycle 2.
-                reset_instr_counter <= instr_cycle(1) when not (std_match(ProgDB, OpSTS) or
-                                                                std_match(ProgDB, OpLDS) or
-                                                                std_match(ProgDB, OpJMP) or 
-                                                                std_match(ProgDB, OpCALL))
-                                                      else instr_cycle(2);
+                if (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
+                    reset_instr_counter <= instr_cycle(2);
+                else
+                    reset_instr_counter <= instr_cycle(1);
+                end if;
             end if;
         end if;
 
-        if (std_match(IR, OpNOP) or std_match(IR, OpSLEEP) or std_match(IR, OpWDR)) then
+        if (std_match(IR, OpNOP) or std_match(IR, OpSLP) or std_match(IR, OpWDR)) then
             -- ALU
             N_AddMask       <= '0';             -- Mask A op
             FSRControl      <= ALU_FSR_A;       -- A, passthrough

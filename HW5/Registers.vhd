@@ -98,18 +98,20 @@ begin
     process(clock, RegIn, AddrRegIn, NewFlags, FlagMask, RegData(SREG_IDX))
     begin
         if rising_edge(clock) then
-            -- Set SREG with flagmask input
-            for i in 0 to NUM_FLAGS-2 loop
-                -- Update bit if FlagMask is set, otherwise preserve old value
-                RegData(SREG_IDX)(i) <= (FlagMask(i) and NewFlags(i)) or 
-                                        ((not FlagMask(i)) and RegData(SREG_IDX)(i));
-            end loop;
-            -- Interrupt flag is never altered via ALU
-            RegData(SREG_IDX)(NUM_FLAGS-1) <= RegData(SREG_IDX)(NUM_FLAGS-1);
+            if (Reset = '1') then
+                -- Set SREG with flagmask input
+                for i in 0 to NUM_FLAGS-2 loop
+                    -- Update bit if FlagMask is set, otherwise preserve old value
+                    RegData(SREG_IDX)(i) <= (FlagMask(i) and NewFlags(i)) or 
+                                            ((not FlagMask(i)) and RegData(SREG_IDX)(i));
+                end loop;
+                -- Interrupt flag is never altered via ALU
+                RegData(SREG_IDX)(NUM_FLAGS-1) <= RegData(SREG_IDX)(NUM_FLAGS-1);
 
-            -- Write to register if requested
-            if (RegWr = '1') and (Reset = '1') then -- don't write to registers during reset bc sim
-                RegData(to_integer(unsigned(RegWrSel))) <= RegIn;
+                -- Write to register if requested
+                if (RegWr = '1') then -- don't write to registers during reset bc sim
+                    RegData(to_integer(unsigned(RegWrSel))) <= RegIn;
+                end if;
             end if;
             -- Update Address registers as requested
             if (AddrRegWr = '1') then

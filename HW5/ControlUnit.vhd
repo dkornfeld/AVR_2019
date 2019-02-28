@@ -19,7 +19,6 @@
 -- Outputs: (Control Signals)
 --        DataRd               (std_logic)                          - Read data
 --        DataWr               (std_logic)                          - Write data
---        IOSel                (std_logic)                          - For in/out instructions
 --        OPBInSel             (std_logic)                          - Controls Mux into ALU B Op
 --        DBSel                (std_logic)                          - Controls output to Data DB
 --        DBEnableOutput       (std_logic)                          - If '0', tri-states the DB out
@@ -32,8 +31,6 @@
 --        AddrRegSel           (std_logic_vector(Log2(NUM_ADDR_REG)-1) downto 0)) - Address register 
 --                                                                                  output select
 --        AddrRegWr            (std_logic)                                - Address Reg (write) En
---        SFlag                (std_logic)                                - Indicate if touching bit 
----                                                                         in SREG
 --        FlagMask             (std_logic_vector(NUM_FLAGS-1 downto 0))   - Indicate changed flags
 --
 --        ALU Control Signals: #####################################################################
@@ -53,10 +50,12 @@
 --                                                                resetting the selected bit
 --        SettingClearing (std_logic)                        - Indicates if we're changing a
 --                                                                bit at all
+--        DoubleZero      (std_logic)                        - Used to indicate double zero flag
+--                                                                to the ALU.
 --
 --        Program Memory Access Unit Control Signals: ##############################################
 --        PCUpdateEn           (std_logic)                      - Enable PC to update
---        N_PCLoad             (std_logic_vector(3 downto 0))   - Active low load control for PC
+--        N_PCLoad             (std_logic)                      - Active low load control for PC
 --        PCControl            (std_logic_vector(2 downto 0))   - Mux input to adder control
 --        HiLoSel              (std_logic)                      - Selects if loading high or low
 --                                                                    part of PC
@@ -95,9 +94,6 @@ use work.opcodes.all;
 ----------------------------------------------------------------------------------------------------
 entity ControlUnit is
     port         (
-        -- FOR TESTING ONLY
-        IR                  :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
-
         -- Inputs
         clock               :    in     std_logic;
         SREG                :    in     std_logic_vector(NUM_FLAGS-1 downto 0);
@@ -106,9 +102,8 @@ entity ControlUnit is
         -- General Control Signals
         DataRd              :    out    std_logic;
         DataWr              :    out    std_logic;
-        IOSel               :    out    std_logic;
         OPBInSel            :    out    std_logic;
-        DBSel               :    out    std_logic; -- Not used this week
+        DBSel               :    out    std_logic;
         DBEnableOutput      :    out    std_logic;
         -- Raw values
         IR_Immediate        :    out    std_logic_vector(NUM_BITS-1 downto 0);
@@ -118,7 +113,6 @@ entity ControlUnit is
         RegWrSel            :    out    std_logic_vector(6 downto 0);      
         RegASel             :    out    std_logic_vector(6 downto 0);   
         RegBSel             :    out    std_logic_vector(6 downto 0);   
-        SFlag               :    out    std_logic;                        
         FlagMask            :    out    std_logic_vector(NUM_BITS-1 downto 0); 
         AddrRegSel          :    out    std_logic_vector(1 downto 0);       
         AddrRegWr           :    out    std_logic;             
@@ -132,11 +126,14 @@ entity ControlUnit is
         TLoad               :    out    std_logic;
         BitSetClear         :    out    std_logic;
         SettingClearing     :    out    std_logic;
+        DoubleZero          :    out    std_logic;
+        MulSelect           :    out    std_logic;
         -- PMAU
         PCUpdateEn          :    out    std_logic;
-        N_PCLoad            :    out    std_logic_vector(3 downto 0);
+        N_PCLoad            :    out    std_logic;
         PCControl           :    out    std_logic_vector(2 downto 0);
         HiLoSel             :    out    std_logic;
+        PCOffset            :    out    std_logic_vector(PC_WIDTH-1 downto 0);
         -- DMAU
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
@@ -147,16 +144,48 @@ entity ControlUnit is
 end ControlUnit;
 -----------------------------------------------------------------------------------------
 architecture data_flow of ControlUnit is
+    -- Current Instruction Register
+    signal IR             :    std_logic_vector(INSTR_SIZE-1 downto 0);
 
     -- Storage for the current cycle count
     signal instr_cycle    :    std_logic_vector(MAX_INSTR_CLKS-1 downto 0); -- 1-hot cycle
                                                                             -- counter
     signal reset_instr_counter    :    std_logic;    -- Active high reset
 
+    -- Storage for enabling selection of IO
+    signal IOBSel : std_logic;
+    signal IOWrSel : std_logic;
+    -- Signal version of Register B/WR Select for internal use
+    signal PreRegBSel : std_logic_vector(6 downto 0);
+    signal PreRegWrSel : std_logic_vector(6 downto 0);
+
+
     -- DataMAU signals (reg vs mem)
     signal reg_access_enable : std_logic; -- 1 when load/store accesses registers instead of memory
     signal reg_index : std_logic_vector(6 downto 0); -- Index of register access via load/store
 begin
+    -- Instruction cycle counter logic
+    process(clock, ProgDB)
+    begin
+        if rising_edge(clock) then
+            if reset_instr_counter = '1' then
+                -- Synchronous reset to 1 in the rightmost place
+                instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
+
+                -- Update IR on start of new instruction
+                IR <= ProgDB;
+            else
+                -- Shift the bit left
+                instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';
+            end if;
+        end if;
+    end process;
+
+    -- IO Select bits.
+    IOBSel <= (instr_cycle(0) = '1') and (std_match(IR, OpCBI) or std_match(IR, OpSBI) or
+                                          std_match(IR, OpIN));
+    IOWrSel <= (instr_cycle(0) = '1') and (std_match(IR, OpCBI) or std_match(IR, OpSBI) or
+                                           std_match(IR, OpOUT));
 
     -- Useful signals for memory-mapped access of registers. 
     reg_access_enable <= '1' when (to_integer(unsigned(DataAB)) < NUM_REGS) else '0';
@@ -167,20 +196,6 @@ begin
 
     -- We only want to latch ProgDB on cycle 2.
     ImmediateAddrLatch <= instr_cycle(1);
-    
-    -- Instruction cycle counter logic
-    process(clock)
-    begin
-        if rising_edge(clock) then
-            if reset_instr_counter = '1' then
-                -- Synchronous reset to 1 in the rightmost place
-                instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
-            else
-                -- Shift the bit left
-                instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';
-            end if;
-        end if;
-    end process;
     
     -- Instruction decoding
     process(IR, clock, instr_cycle, ProgDB, DataAB)
@@ -197,18 +212,17 @@ begin
 
         -- Default Register Controls
         RegASel <= "00" & IR(8 downto 4);           -- Assume that register selects 
-        RegBSel <= "00" & IR(9) & IR(3 downto 0);   -- follow Rd, Rr scheme from instr set
+        PreRegBSel <= "00" & IR(9) & IR(3 downto 0);   -- follow Rd, Rr scheme from instr set
         RegWr   <= '1';                             -- Assume we're writing
-        RegWrSel<= "00" & IR (8 downto 4);
-        SFlag   <= '0';                             -- By default, don't directly mess with the 
-                                                    -- SREG (TODO utilize memory-mapped IO space 
-                                                    -- for this. Don't grade this, Fabio)
+        PreRegWrSel<= "00" & IR (8 downto 4);
         AddrRegWr <= '0';                           -- By default, don't write to address register.
 
         -- Default ALU Controls
         TSCBitSelect <= IR(2 downto 0);             -- Always use lower 3 bits to determine 
                                                     -- which bit in byte to alter with 
                                                     -- set/clear/T flag
+        DoubleZero <= '0';           -- We are normally not in a double zero insn
+        MulSelect <= '0';            -- We are normally not multiplying numbers
 
 
         -- Default DataMAU signals
@@ -216,6 +230,14 @@ begin
         N_Inc <= '0';           -- Leave on Increment
         PrePostSel <= '0';      -- Select Pre
         OutputImmediate <= '0'; -- Don't output immediately from ProgDB
+
+        -- Default ProgMAU signals
+        PCUpdateEn <= '1';           -- Update to next PC
+        PCControl <= PC_UPDATE_ONE;  -- Update PC = PC + 1
+        N_PCLoad <= '0';             -- Don't load fixed PC
+        HiLoSel <= '0';              -- Don't care
+        PCOffset <= (others => '0'); -- Offset normally zero
+        DBSel <= '0';                -- Usually take DataDB from ALU
         
         if std_match(IR, OpADC) then
             -- ALU
@@ -252,6 +274,7 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
+            DoubleZero      <= instr_cycle(1);  -- Avoid double zero flag
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
@@ -265,8 +288,11 @@ begin
             -- cycle, move up one register and reset the
             -- cycle counter;
             RegASel     <= "0011" & IR(5 downto 4) & instr_cycle(1);
-            RegWrSel    <= "0011" & IR(5 downto 4) & instr_cycle(1);
+            PreRegWrSel    <= "0011" & IR(5 downto 4) & instr_cycle(1);
             reset_instr_counter <= instr_cycle(1);
+
+            -- Update PC only on second cycle.
+            PCUpdateEn <= instr_cycle(1);
             
             -- Now set the cycle-dependent controls
             if instr_cycle(0) = '1' then                -- 1/2, ADD B
@@ -306,6 +332,11 @@ begin
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
+
+            -- Registers
+            -- Only allow writing to upper half of registers.
+            RegASel <= "001" & IR(7 downto 4);
+            PreRegWrSel <= "001" & IR(7 downto 4);
         end if;
         
         if std_match(IR, OpASR) then
@@ -332,7 +363,8 @@ begin
             SettingClearing <= '1';             -- Change a bit
             BitSetClear     <= '0';             -- to 0
             -- Registers
-            SFlag           <= '1';             -- Directly write to SREG
+            RegASel         <= SREG_IDX_SEL;    -- Directly write to SREG
+            PreRegWrSel        <= SREG_IDX_SEL;
             TSCBitSelect    <= IR(6 downto 4);  -- Flag select
             FlagMask        <= FLAGS_ALL;       -- ALU can set any flag
         end if;
@@ -361,7 +393,8 @@ begin
             SettingClearing <= '1';             -- Change a bit
             BitSetClear     <= '1';             -- to 1
             -- Registers
-            SFlag           <= '1';             -- Directly write to SREG
+            RegASel         <= SREG_IDX_SEL;    -- Directly write to SREG
+            PreRegWrSel     <= SREG_IDX_SEL;
             TSCBitSelect    <= IR(6 downto 4);  -- Flag select
             FlagMask        <= FLAGS_ALL;       -- ALU can set any flag
         end if;
@@ -403,6 +436,10 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+
+            -- Registers
+            -- Don't write to a register.
+            RegWr   <= '0';
         end if;
         
         if std_match(IR, OpCPC) then
@@ -416,6 +453,11 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVSH;    -- Z, C, N, V, S, H
+            DoubleZero      <= '1';             -- Avoid double zero flag
+
+            -- Registers
+            -- Don't write to a register.
+            RegWr   <= '0';
         end if;
         
         if std_match(IR, OpCPI) then
@@ -432,6 +474,11 @@ begin
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
+
+            -- Registers
+            -- Select upper half of registers, don't write.
+            RegASel <= "001" & IR(7 downto 4);
+            RegWr   <= '0';
         end if;
         
         if std_match(IR, OpDEC) then
@@ -485,6 +532,26 @@ begin
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
         end if;
+
+        if std_match(IR, OpMUL) then
+            -- ALU
+            reset_instr_counter <= instr_cycle(1); -- 2-cycle multiply
+            DoubleZero          <= instr_cycle(1); -- For 2-byte zero computation
+            MulSelect           <= '1';
+
+            -- Update PC only on second cycle.
+            PCUpdateEn <= instr_cycle(1);
+
+            N_AddMask       <= '1';             -- Need both operands
+            FSRControl      <= ALU_FSR_ONES;    -- Don't care
+            Subtract        <= '0';             -- Need flags to act like addition
+            CarryInControl  <= CARRY_IN_ZERO;   -- Don't care
+            ALUResultSel    <= instr_cycle(1);  -- Low byte first, then high byte
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- Don't care
+            FlagMask        <= FLAGS_ZC;        -- Z, C
+        end if;
         
         if std_match(IR, OpNEG) then
             -- ALU
@@ -526,6 +593,11 @@ begin
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
+
+            -- Registers
+            -- Only allow writing to upper half of registers.
+            RegASel <= "001" & IR(7 downto 4);
+            PreRegWrSel <= "001" & IR(7 downto 4);
         end if;
         
         if std_match(IR, OpROR) then
@@ -568,6 +640,11 @@ begin
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
+
+            -- Registers
+            -- Only allow writing to upper half of registers.
+            RegASel <= "001" & IR(7 downto 4);
+            PreRegWrSel <= "001" & IR(7 downto 4);
         end if;
         
         if std_match(IR, OpSBIW) then
@@ -579,6 +656,7 @@ begin
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZCNVS;     -- Z, C, N, V, S
+            DoubleZero      <= instr_cycle(1);  -- Avoid double zero flag
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
@@ -592,8 +670,11 @@ begin
             -- cycle, move up one register and reset the
             -- cycle counter;
             RegASel     <= "0011" & IR(5 downto 4) & instr_cycle(1);
-            RegWrSel    <= "0011" & IR(5 downto 4) & instr_cycle(1);
+            PreRegWrSel    <= "0011" & IR(5 downto 4) & instr_cycle(1);
             reset_instr_counter <= instr_cycle(1);
+
+            -- Update PC only on second cycle.
+            PCUpdateEn <= instr_cycle(1);
             
             -- Now set the cycle-dependent controls
             if instr_cycle(0) = '1' then            -- 1/2, SUB B
@@ -633,6 +714,11 @@ begin
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
+
+            -- Registers
+            -- Only allow writing to upper half of registers.
+            RegASel <= "001" & IR(7 downto 4);
+            PreRegWrSel <= "001" & IR(7 downto 4);
         end if;
         
         if std_match(IR, OpSWAP) then
@@ -672,7 +758,7 @@ begin
             FlagMask        <= FLAGS_NONE;      -- Don't change flags
             
             -- Only write to upper 16 registers. Only have to overwrite bit 8 to '1'
-            RegWrSel        <= "001" & IR(7 downto 4);   
+            PreRegWrSel        <= "001" & IR(7 downto 4);   
 
             -- Immediate comes in through operand B
             OPBInSel        <= '1';
@@ -694,6 +780,7 @@ begin
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- don't care
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
 
             -- Don't update a register by default.
             RegWr <= '0';
@@ -709,7 +796,7 @@ begin
                     RegASel <= reg_index;
                 else
                     -- On a store, write to the correct register.
-                    RegWRSel <= reg_index;
+                    PreRegWrSel <= reg_index;
                 end if;
             end if;
 
@@ -719,6 +806,9 @@ begin
             else
                 AddrRegSel <= IR (3 downto 2);
             end if;
+
+            -- Update PC only on second cycle.
+            PCUpdateEn <= instr_cycle(1);
 
             -- Clock dependent selections
             if instr_cycle(0) = '1' then
@@ -771,6 +861,7 @@ begin
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
 
             -- Don't update a register by default.
             RegWr <= '0';
@@ -789,7 +880,7 @@ begin
                     RegASel <= reg_index;
                 else
                     -- On a store, write to the correct register.
-                    RegWRSel <= reg_index;
+                    PreRegWrSel <= reg_index;
                 end if;
             end if;
 
@@ -799,6 +890,9 @@ begin
             else                              -- Z
                 AddrRegSel <= ADDR_REG_SEL_Z;
             end if;
+
+            -- Update PC only on second cycle.
+            PCUpdateEn <= instr_cycle(1);
 
             -- Clock dependent selections
             if instr_cycle(1) = '1' then
@@ -826,12 +920,16 @@ begin
             TLoad           <= '0';             -- Not loading from T
             SettingClearing <= '0';             -- Not setting/clearing
             BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
 
             -- Don't update a register by default.
             RegWr <= '0';
 
             -- Take three cycles
             reset_instr_counter <= instr_cycle(2);
+
+            -- Update PC only on second and third cycles.
+            PCUpdateEn <= (not instr_cycle(0));
 
             -- Tell DataMAU to output immediate.
             OutputImmediate <= '1';
@@ -844,7 +942,7 @@ begin
                     RegASel <= reg_index;
                 else
                     -- On a store, write to the correct register.
-                    RegWRSel <= reg_index;
+                    PreRegWrSel <= reg_index;
                 end if;
             end if;
 
@@ -863,5 +961,411 @@ begin
                 end if;
             end if;
         end if;
+
+        if (std_match(IR, OpJMP)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register.
+            RegWr <= '0';
+
+            -- Update PC on clock 2.
+            PCUpdateEn <= instr_cycle(1);
+            PCControl <= PC_UPDATE_ADDRDATA;
+            N_PCLoad <= '0';
+
+            -- Tell DataMAU to output immediate.
+            OutputImmediate <= '1';
+
+            -- Take three cycles
+            reset_instr_counter <= instr_cycle(2);
+        end if;
+
+        if (std_match(IR, OpRJMP) or std_match(IR, OpIJMP)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+
+            -- Don't update a register.
+            RegWr <= '0';
+
+            -- Update PC on clock 1.
+            PCUpdateEn <= instr_cycle(0);
+
+            if IR(14) = '1' then
+                -- RJMP
+                PCControl <= PC_UPDATE_OFFSET;
+                -- Set PCOffset = sign extended IR offset
+                PCOffset <= std_logic_vector(to_signed(to_integer(signed(IR(11 downto 0))), PCOffset'length));
+            else
+                -- IJMP
+                PCControl <= PC_UPDATE_REGZ;
+                N_PCLoad <= '0';
+            end if;
+
+            -- Take two cycles
+            reset_instr_counter <= instr_cycle(1);
+        end if;
+
+        if (std_match(IR, OpCALL)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register.
+            RegWr <= '0';
+
+            -- Take four cycles
+            reset_instr_counter <= instr_cycle(3);
+
+            -- Update PC on clock 1, 3.
+            PCUpdateEn <= (instr_cycle(0) or instr_cycle(2));
+
+            -- Select AddrReg = SP
+            AddrRegSel <= ADDR_REG_SEL_SP;
+
+            -- Write PC high, then PC low
+            HiLoSel    <= instr_cycle(1);
+            DBSel      <= instr_cycle(1) or instr_cycle(2);
+
+            -- If we are loading from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                -- On a store, write to the correct register.
+                PreRegWrSel <= reg_index;
+            end if;
+
+            -- Clock dependent selections
+            if (instr_cycle(1) or instr_cycle(2)) = '1' then
+                if reg_access_enable = '0' then
+                    -- Output read/write if touching memory
+                    DataWr <= clock;       -- Output write on lock clock + store
+                    DBEnableOutput <= '1'; -- Don't give up control of the DB
+                end if;
+
+                -- If we're storing to register space, we must write to a register.
+                RegWr <= reg_access_enable;
+
+                -- We're pushing, so update the address register
+                N_Inc <= '1';     -- Do a decrement
+                AddrRegWr <= '1';
+            end if;
+            if instr_cycle(2) = '1' then
+                -- Update PC with address
+                PCControl  <= PC_UPDATE_ADDRDATA;
+                N_PCLoad   <= '0';
+                -- Tell DataMAU to output immediate when loading PC.
+                OutputImmediate <= '1';
+            end if;
+        end if;
+
+        if (std_match(IR, OpRCALL) or std_match(IR, OpICALL)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register.
+            RegWr <= '0';
+
+            -- Take three cycles
+            reset_instr_counter <= instr_cycle(2);
+
+            -- Update PC on clock 2.
+            PCUpdateEn <= instr_cycle(1);
+
+            -- Select AddrReg = SP
+            AddrRegSel <= ADDR_REG_SEL_SP;
+
+            -- Write PC high, then PC low
+            HiLoSel    <= instr_cycle(1);
+            DBSel      <= instr_cycle(1) or instr_cycle(2);
+
+            -- If we are loading from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                -- On a store, write to the correct register.
+                PreRegWrSel <= reg_index;
+            end if;
+
+            -- Clock dependent selections
+            if (instr_cycle(1) or instr_cycle(2)) = '1' then
+                if reg_access_enable = '0' then
+                    -- Output read/write if touching memory
+                    DataWr <= clock;       -- Output write on lock clock + store
+                    DBEnableOutput <= '1'; -- Don't give up control of the DB
+                end if;
+
+                -- If we're storing to register space, we must write to a register.
+                RegWr <= reg_access_enable;
+
+                -- We're pushing, so update the address register
+                N_Inc <= '1';     -- Do a decrement
+                AddrRegWr <= '1';
+            end if;
+            if instr_cycle(1) = '1' then
+                if IR(14) = '1' then
+                    -- RCALL
+                    PCControl <= PC_UPDATE_OFFSET;
+                    -- Set PCOffset = sign extended IR offset
+                    PCOffset <= std_logic_vector(to_signed(to_integer(signed(IR(11 downto 0))), PCOffset'length));
+                else
+                    -- ICALL
+                    PCControl <= PC_UPDATE_REGZ;
+                    N_PCLoad <= '0';
+                end if;
+            end if;
+        end if;
+
+        if (std_match(IR, OpRET) or std_match(IR, OpRETI)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register by default.
+            RegWr <= '0';
+
+            -- Take four cycles
+            reset_instr_counter <= instr_cycle(3);
+
+            -- If we are loading from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                -- On a load, read from the correct register.
+                RegASel <= reg_index;
+            end if;
+
+            -- Select AddrReg = SP
+            AddrRegSel <= ADDR_REG_SEL_SP;
+
+            -- Update PC on clocks 2/3 with DataDB
+            PCUpdateEn <= instr_cycle(1) or instr_cycle(2);
+            PCControl  <= PC_UPDATE_DATADB;
+            HiLoSel    <= instr_cycle(2); 
+
+            -- Clock dependent selections
+            if (instr_cycle(0) or instr_cycle(1)) = '1' then
+               -- Pre-increment for pop
+                PrePostSel <= '1';  -- Select Pre
+                AddrRegWr  <= '1';  -- Update address register
+                                    -- Select increment by default
+            end if;
+            if (instr_cycle(1) or instr_cycle(2)) = '1' then
+                -- Output read/write if touching memory
+                if reg_access_enable = '0' then
+                    DataRd <= clock;       -- Output read on low clock + load
+                    DBEnableOutput <= '0'; -- Give up control of the DB
+                end if;
+            end if;
+            if instr_cycle(3) = '1' then
+                -- If RETI, set interrupt flag.
+                if IR(4) = '1' then
+                    -- ALU
+                    SettingClearing <= '1';             -- Change a bit
+                    BitSetClear     <= '1';             -- to 1
+                    -- Registers
+                    RegASel         <= SREG_IDX_SEL;    -- Directly write to SREG
+                    PreRegWrSel        <= SREG_IDX_SEL;
+                    TSCBitSelect    <= "111";           -- Interrupt flag select
+                    FlagMask        <= FLAGS_ALL;       -- ALU can set any flag
+                    RegWr           <= '1';             -- Write to a register
+                end if;
+            end if;
+        end if;
+
+        if (std_match(IR, OpBRBC) or std_match(IR, OpBRBS)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register by default.
+            RegWr <= '0';
+
+            -- Only update PC on cycle 0.
+            PCUpdateEn <= instr_cycle(0);
+
+            -- By default, take 1 cycle.
+            reset_instr_counter <= '1';
+
+            -- Branch only if bit and condition match.
+            if (instr_cycle(0) = '1') and ((IR(10) xor SREG(to_integer(unsigned(IR(2 downto 0))))) = '1') then
+                -- On cycle 0, take a branch.
+                reset_instr_counter <= '0';
+                -- Relative Branch
+                PCControl <= PC_UPDATE_OFFSET;
+                -- Set PCOffset = sign extended IR offset
+                PCOffset <= std_logic_vector(to_signed(to_integer(signed(IR(9 downto 3))), PCOffset'length));
+            end if;
+        end if;
+
+        if (std_match(IR, OpSBRC) or std_match(IR, OpSBRS)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register by default.
+            RegWr <= '0';
+
+            -- By default, take 1 cycle.
+            reset_instr_counter <= '1';
+
+            -- Branch only if bit and condition match.
+            if (instr_cycle(0) = '1') and (IR(9) = TODO_WHAT_GOES_HERE(to_integer(unsigned(IR(2 downto 0))))) then
+                -- Don't update the instruction counter..
+                reset_instr_counter <= '0';
+            end if;
+            if (instr_cycle(1) = '1') then
+                -- Take three cycles if two-word instruction.
+                reset_instr_counter <= not (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or
+                                            std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL));
+            end if;
+        end if;
+
+        if (std_match(IR, OpCPSE)) then
+            -- ALU
+            N_AddMask       <= '1';             -- Subtracting normally
+            FSRControl      <= ALU_FSR_NOT_B;   -- not B
+            Subtract        <= '1';             -- Subtracting
+            CarryInControl  <= CARRY_IN_ONE;    -- No borrow in
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- Don't care
+            FlagMask        <= FLAGS_NONE;      -- No flags update
+
+            -- Don't write to a register.
+            RegWr   <= '0';
+
+            -- Branch only if bit and condition match.
+            if (SREG(FLAG_Z) = '1') then
+                -- Reset on cycle 3 if a 2-word instruction, otherwise cycle 2.
+                reset_instr_counter <= instr_cycle(1) when not (std_match(ProgDB, OpSTS) or
+                                                                std_match(ProgDB, OpLDS) or
+                                                                std_match(ProgDB, OpJMP) or 
+                                                                std_match(ProgDB, OpCALL))
+                                                      else instr_cycle(2);
+            end if;
+        end if;
+
+        if (std_match(IR, OpNOP) or std_match(IR, OpSLEEP) or std_match(IR, OpWDR)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask A op
+            FSRControl      <= ALU_FSR_A;       -- A, passthrough
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- to 0
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Don't update a register by default.
+            RegWr <= '0';
+        end if;
+
+        if (std_match(IR, OpIN)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask out A
+            FSRControl      <= ALU_FSR_B;       -- B passes through
+            Subtract        <= '0';             -- Not subtracting
+            ALUResultSel    <= '0';             -- Adder
+            CarryInControl  <= CARRY_IN_ZERO;   -- No Carry Influence
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- Don't care
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Registers
+            PreRegBSel <= "0" & IR(10 downto 9) & IR(3 downto 0); 
+        end if;
+
+        if (std_match(IR, OpOut)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask out A
+            FSRControl      <= ALU_FSR_A;       -- A passes through
+            Subtract        <= '0';             -- Not subtracting
+            ALUResultSel    <= '0';             -- Adder
+            CarryInControl  <= CARRY_IN_ZERO;   -- No Carry Influence
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- Don't care
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Registers
+            PreRegWrSel <= "0" & IR(10 downto 9) & IR(3 downto 0); 
+        end if;
+
+        if (std_match(IR, OpSBI) or std_match(IR, OpCBI)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask out A
+            FSRControl      <= ALU_FSR_B;       -- B passes through
+            Subtract        <= '0';             -- Not subtracting
+            CarryInControl  <= CARRY_IN_ZERO;   -- No carry influence
+            ALUResultSel    <= '0';             -- Adder
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '1';             -- Changing a bit
+            BitSetClear     <= IR(9);           -- to IR
+            TSCBitSelect    <= IR(2 downto 0);  -- Flag select
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Register select.
+            PreRegBSel <= "0" & IR (8 downto 3);
+            PreRegWrSel<= "0" & IR (8 downto 3);
+        end if;
     end process;
+
+    -- Connect RegBSel/RegWRSel to relevant ports
+    -- This implements an inline one-bit adder.
+    RegBSel <= (PreRegBSel(6) or (PreRegBSel(5) and IOBSel)) & (PreRegBSel(5) xor IOBSel)
+               & PreRegBSel(4 downto 0);
+    RegWrSel <= (PreRegWRSel(6) or (PreRegWRSel(5) and IOWrSel)) & (PreRegWRSel(5) xor IOWrSel)
+               & PreRegWRSel(4 downto 0);
 end architecture;

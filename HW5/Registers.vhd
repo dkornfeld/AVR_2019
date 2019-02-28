@@ -21,14 +21,14 @@
 --        RegWr            (std_logic)                                  - Reg (write) Enable
 --        AddrRegSel       (std_logic_vector(1 downto 0))               - Select X vs Y vs Z vs SP
 --        AddrRegWr        (std_logic)                                  - Enable write to Addr Reg
---        SFlag            (std_logic)                                  - Indicate if directly writing SREG
 --        FlagMask         (std_logic_vector(NUM_FLAGS-1 downto 0))     - Bitmask of flags to update
 --        
 -- Outputs:
 --        RegAOutput       (std_logic_vector(NUM_BITS-1 downto 0)       - Output register A
 --        RegBOutput       (std_logic_vector(NUM_BITS-1 downto 0)       - Output register B
---        AddrRegOut       (std_logic_vector(DATA_AB_SIZES-1 downto 0)) - Output Addr Register
+--        AddrRegOut       (std_logic_vector(DATA_AB_SIZE-1 downto 0))  - Output Addr Register
 --        SREG             (std_logic_vector(NUM_BITS-1 downto 0)       - Output SREG
+--        RegZ             (std_logic_vector(DATA_AB_SIZE-1 downto 0)   - Output Register Z
 --
 -- Revision History:
 --        01/30/19    Bobby Abrahamson        Initial Revision
@@ -57,7 +57,6 @@ entity Registers is
         RegWrSel    : in std_logic_vector(6 downto 0);      
         RegASel     : in std_logic_vector(6 downto 0);   
         RegBSel     : in std_logic_vector(6 downto 0);   
-        SFlag       : in std_logic;                        
         FlagMask    : in std_logic_vector(NUM_BITS-1 downto 0); 
         NewFlags    : in std_logic_vector(NUM_FLAGS-2 downto 0); 
         AddrRegSel  : in std_logic_vector(1 downto 0);       
@@ -66,24 +65,12 @@ entity Registers is
         RegAOutput  : out std_logic_vector(NUM_BITS-1 downto 0); 
         RegBOutput  : out std_logic_vector(NUM_BITS-1 downto 0);
         AddrRegOut  : out std_logic_vector(DATA_AB_SIZE-1 downto 0);
-        SREG        : out std_logic_vector(NUM_BITS-1 downto 0)
+        SREG        : out std_logic_vector(NUM_BITS-1 downto 0);
+        RegZ        : out std_logic_vector(DATA_AB_SIZE-1 downto 0)
     );
 end Registers;
 
 architecture data_flow of Registers is
-    -- Constants for Addr Register readability
-    constant X_LOW      :    integer := 26;
-    constant X_HIGH     :    integer := 27;
-    constant Y_LOW      :    integer := 28;
-    constant Y_HIGH     :    integer := 29;
-    constant Z_LOW      :    integer := 30;
-    constant Z_HIGH     :    integer := 31;
-    constant SP_LOW     :    integer := 93;
-    constant SP_HIGH    :    integer := 94;
-    
-    -- Constant for specifying the SREG
-    constant SREG_IDX   :    integer := 95;
-    
     --Define registers, signals.
     type REG_ARRAY is array (0 to NUM_REGS-1) of std_logic_vector(NUM_BITS-1 downto 0);
     signal RegData  :    REG_ARRAY := (others => (others => '0')); -- For simulation only, init to 0
@@ -97,6 +84,9 @@ begin
     -- Output SREG
     SREG <= RegData(SREG_IDX);
 
+    -- Output Register Z, for ProgMAU
+    RegZ <= RegData(Z_HIGH) & RegData(Z_LOW);
+
     -- Output Address Register
     AddrRegOut <= RegData(X_HIGH)  & RegData(X_LOW)  when (AddrRegSel = ADDR_REG_SEL_X)  else -- X
                   RegData(Y_HIGH)  & RegData(Y_LOW)  when (AddrRegSel = ADDR_REG_SEL_Y)  else -- Y
@@ -108,20 +98,15 @@ begin
     process(clock, RegIn, AddrRegIn, NewFlags, FlagMask, RegData(SREG_IDX))
     begin
         if rising_edge(clock) then
-            -- Set SREG with input if requested
-            -- Fabio: we are getting rid of SFlag for next set, don't grade this <3
-            if (SFlag = '0') then
-                for i in 0 to NUM_FLAGS-2 loop
-                    -- Update bit if FlagMask is set, otherwise preserve old value
-                    RegData(SREG_IDX)(i) <= (FlagMask(i) and NewFlags(i)) or 
-                                            ((not FlagMask(i)) and RegData(SREG_IDX)(i));
-                end loop;
-                -- Interrupt flag is never altered via ALU
-                RegData(SREG_IDX)(NUM_FLAGS-1) <= RegData(SREG_IDX)(NUM_FLAGS-1);
-            else -- (SFlag = '1')
-                -- Directly write RegIn to SREG
-                RegData(SREG_IDX) <= Regin;
-            end if;
+            -- Set SREG with flagmask input
+            for i in 0 to NUM_FLAGS-2 loop
+                -- Update bit if FlagMask is set, otherwise preserve old value
+                RegData(SREG_IDX)(i) <= (FlagMask(i) and NewFlags(i)) or 
+                                        ((not FlagMask(i)) and RegData(SREG_IDX)(i));
+            end loop;
+            -- Interrupt flag is never altered via ALU
+            RegData(SREG_IDX)(NUM_FLAGS-1) <= RegData(SREG_IDX)(NUM_FLAGS-1);
+
             -- Write to register if requested
             if (RegWr = '1') and (Reset = '1') then -- don't write to registers during reset bc sim
                 RegData(to_integer(unsigned(RegWrSel))) <= RegIn;

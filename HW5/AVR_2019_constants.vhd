@@ -31,7 +31,7 @@ package AVR_2019_constants is
     
     -- ControlUnit Constants #######################################################################
     constant INSTR_SIZE             :   integer := 16;  -- Size of instructions
-    constant MAX_INSTR_CLKS         :   integer := 3;   -- The maximum number of clocks
+    constant MAX_INSTR_CLKS         :   integer := 4;   -- The maximum number of clocks
                                                         -- for an instruction
     
     -- Register Constants ##########################################################################
@@ -81,6 +81,33 @@ package AVR_2019_constants is
     constant ALU_FSR_SWAP        :   std_logic_vector(3 downto 0) := "0010";
     constant ALU_FSR_ASR         :   std_logic_vector(3 downto 0) := ALU_FSR_NOT_B;
     constant ALU_FSR_LSR         :   std_logic_vector(3 downto 0) := ALU_FSR_A_XOR_B;
+
+    -- PC update select constants
+    constant PC_UPDATE_ONE       :   std_logic_vector(2 downto 0) := "000";
+    constant PC_UPDATE_TWO       :   std_logic_vector(2 downto 0) := "001";
+    constant PC_UPDATE_OFFSET    :   std_logic_vector(2 downto 0) := "010";
+    constant PC_UPDATE_ADDRDATA  :   std_logic_vector(2 downto 0) := "011";
+    constant PC_UPDATE_DATADB    :   std_logic_vector(2 downto 0) := "100";
+    constant PC_UPDATE_REGZ      :   std_logic_vector(2 downto 0) := "101";
+
+    constant ALU_FSR_SWAP        :   std_logic_vector(3 downto 0) := "0010";
+    constant ALU_FSR_ASR         :   std_logic_vector(3 downto 0) := ALU_FSR_NOT_B;
+    constant ALU_FSR_LSR         :   std_logic_vector(3 downto 0) := ALU_FSR_A_XOR_B;
+
+
+    -- Constants for Addr Register readability
+    constant X_LOW      :    integer := 26;
+    constant X_HIGH     :    integer := 27;
+    constant Y_LOW      :    integer := 28;
+    constant Y_HIGH     :    integer := 29;
+    constant Z_LOW      :    integer := 30;
+    constant Z_HIGH     :    integer := 31;
+    constant SP_LOW     :    integer := 93;
+    constant SP_HIGH    :    integer := 94;
+    
+    -- Constant for specifying the SREG
+    constant SREG_IDX     :    integer := 95;
+    constant SREG_IDX_SEL :    std_logic_vector(6 downto 0) := std_logic_vector(to_unsigned(SREG_IDX, SREG_IDX_SEL'length));
 
     -- Constants for Flags array readability
     constant FLAG_T    :    integer := 6;

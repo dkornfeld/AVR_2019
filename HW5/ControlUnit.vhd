@@ -181,15 +181,20 @@ begin
     process(clock, ProgDB)
     begin
         if rising_edge(clock) then
-            if (reset_instr_counter = '1') or (reset = '0') then
-                -- Synchronous reset to 1 in the rightmost place
-                instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
+            if (reset = '1') then
+                if (reset_instr_counter = '1') then
+                    -- Synchronous reset to 1 in the rightmost place
+                    instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
 
-                -- Update IR on start of new instruction
-                IR <= ProgDB;
+                    -- Update IR on start of new instruction
+                    IR <= ProgDB;
+                else
+                    -- Shift the bit left
+                    instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';
+                end if;
             else
-                -- Shift the bit left
-                instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';
+                -- Synchronous Reset
+                instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
             end if;
         end if;
     end process;

@@ -145,17 +145,20 @@ begin
     --        1110 -> A or B
     --        1111 -> Ones vector
     FGenerate: for i in 0 to NUM_BITS-1 generate
-        Fout(i)    <= 	(FSRControl(0) and 	(not OperandA(i)) and (not OperandB(i))) or
-                        (FSRControl(1) and 	(not OperandA(i)) and (    OperandB(i))) or
-                        (FSRControl(2) and 	(    OperandA(i)) and (not OperandB(i))) or
-                        (FSRControl(3) and 	(    OperandA(i)) and (    OperandB(i)));
+        Fout(i)    <=   FSRControl(0)   when    (OperandA(i)='0') and (OperandB(i)='0') else
+                        FSRControl(1)   when    (OperandA(i)='0') else -- (OperandB(i)='1')
+                        FSRControl(2)   when    (OperandA(i)='1') and (OperandB(i)='0') else
+                        FSRControl(3)   when    (OperandA(i)='1') else
+                        FSRControl(0)   when    (OperandB(i)='0') else
+                        FSRControl(1)   when    (OperandB(i)='1');
     end generate;
     
     -- Full Adder ##################################################################################
     
     -- Inputs to adder are the selectively masked A Operand and the F block
     AdderInAGenerate: for i in 0 to NUM_BITS-1 generate
-        AdderInA(i) <= OperandA(i) and N_AddMask;
+        AdderInA(i) <=  OperandA(i) when N_AddMask = '1' else
+                        '0';
     end generate;
     
     AdderInB <= Fout;

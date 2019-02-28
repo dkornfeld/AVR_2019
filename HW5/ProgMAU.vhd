@@ -12,11 +12,12 @@
 --
 -- Inputs:
 --      clock           (std_logic)                                         - clock input
+--      reset           (std_logic)                                         - active low reset
 --      Offset          (std_logic_vector(PC_WIDTH-1 downto 0))     - ControlUnit-resized
 --                                                                      word offset from
 --                                                                      an instruction
 --      RegZ            (std_logic_vector(PC_WIDTH-1 downto 0))     - Input from Z address register
---      AddrDataIn      (std_logic_vector(PC_WIDTH-1 downto 0))     - Input from address registers
+--      ProgDB          (std_logic_vector(PC_WIDTH-1 downto 0))     - Input from progDB
 --      DataDB          (std_logic_vector(NUM_BITS-1 downto 0))     - Input from DataDB for RTS
 --      Control Signals: ###########################################################################
 --      PCUpdateEn      (std_logic)                         - Enable PC to update
@@ -24,6 +25,7 @@
 --      PCControl       (std_logic_vector(2 downto 0))      - Mux input to adder control
 --      HiLoSel         (std_logic)                         - Selects if loading high or low
 --                                                            part of PC
+--      PMAUProgDBLatch (std_logic)                         - Enables a latching of the progDB
 --      
 -- Outputs:
 --      ProgAB          (std_logic_vector(PC_WIDTH-1 downto 0))     - Computed next Prog 
@@ -42,14 +44,16 @@ use work.AVR_2019_constants.all;
 entity ProgMAU is
     port        (
         clock           :   in  std_logic;
+        reset           :   in  std_logic;
         Offset          :   in  std_logic_vector(PC_WIDTH-1 downto 0);
         RegZ            :   in  std_logic_vector(PC_WIDTH-1 downto 0);
-        AddrDataIn      :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
+        ProgDB          :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
         DataDB          :   in  std_logic_vector(NUM_BITS-1 downto 0);
         PCUpdateEn      :   in  std_logic;
         N_PCLoad        :   in  std_logic;
         PCControl       :   in  std_logic_vector(2 downto 0);
         HiLoSel         :   in  std_logic;
+        PMAUProgDBLatch :   in  std_logic;
         ProgAB          :   out std_logic_vector(PC_WIDTH-1 downto 0);
         PC              :   out std_logic_vector(PC_WIDTH-1 downto 0)
     );
@@ -80,13 +84,27 @@ architecture data_flow of ProgMAU is
     signal AdderInA         :   std_logic_vector(PC_WIDTH-1 downto 0);
     signal AdderInB         :   std_logic_vector(PC_WIDTH-1 downto 0);
     signal MainAdderCarries :   std_logic_vector(PC_WIDTH-1 downto 0);
+
+    -- Latched version of the ProgDB for CALLs
+    signal Latched_ProgDB    :   std_logic_vector(PC_WIDTH-1 downto 0);
 begin
+    -- Latch the ProgDB into a register to hold it for LDS/STS #####################################
+    process(clock)
+    begin
+        if falling_edge(clock) then -- Give the most time we possibly can
+            if (PMAUProgDBLatch = '1') then
+                Latched_ProgDB <= ProgDB;
+            end if;
+        end if;
+    end process;
 
     -- Latch the PC on the rising edge of clock ####################################################
     process(clock)
     begin
         if rising_edge(clock) then
-            if PCUpdateEn='1' then -- Only if we're allowing the PC to update
+            if reset = '0' then -- Synchronous reset
+                PrePC <= (others => '1');
+            elsif PCUpdateEn='1' then -- Only if we're allowing the PC to update
                 PrePC <= ComputedAddress;
             end if;
         end if;
@@ -101,7 +119,7 @@ begin
     AdderInB    <=  ONE                     when PCControl = PC_UPDATE_ONE      else
                     TWO                     when PCControl = PC_UPDATE_TWO      else
                     Offset                  when PCControl = PC_UPDATE_OFFSET   else
-                    AddrDataIn              when PCControl = PC_UPDATE_ADDRDATA else
+                    Latched_ProgDB          when PCControl = PC_UPDATE_PROGDB   else
                     HiLoSelectedDataDB      when PCControl = PC_UPDATE_DATADB   else
                     RegZ;                   -- when PCControl = PC_UPDATE_REGZ Same output for all 
                                             -- others to save space

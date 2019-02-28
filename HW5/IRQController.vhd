@@ -87,34 +87,33 @@ begin
                 ANACMP;         -- Active high
 
     -- Output the proper address ###################################################################
-    process (RESET, INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, 
-            T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
+    process (RESET, INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
     begin
         if (RESET = '0') then           -- Priority is given to items higher up on this list
             Vector_Address <= RESET_ADDRESS;
-        else if (INT0 = '0') then
+        elsif (INT0 = '0') then
             Vector_Address <= INT0_ADDRESS;
-        else if (INT1 = '0') then
+        elsif (INT1 = '0') then
             Vector_Address <= INT1_ADDRESS;
-        else if (T1CAP = '1') then
+        elsif (T1CAP = '1') then
             Vector_Address <= T1CAP_ADDRESS;
-        else if (T1CPA = '1') then
+        elsif (T1CPA = '1') then
             Vector_Address <= T1CPA_ADDRESS;
-        else if (T1CPB = '1') then
+        elsif (T1CPB = '1') then
             Vector_Address <= T1CPB_ADDRESS;
-        else if (T1OVF = '1') then
+        elsif (T1OVF = '1') then
             Vector_Address <= T1OVF_ADDRESS;
-        else if (T0OVF = '1') then
+        elsif (T0OVF = '1') then
             Vector_Address <= T0OVF_ADDRESS;
-        else if (IRQSPI = '1') then
+        elsif (IRQSPI = '1') then
             Vector_Address <= IRQSPI_ADDRESS;
-        else if (UARTRX = '1') then
+        elsif (UARTRX = '1') then
             Vector_Address <= UARTRX_ADDRESS;
-        else if (UARTRE = '1') then
+        elsif (UARTRE = '1') then
             Vector_Address <= UARTRE_ADDRESS;
-        else if (UARTTX = '1') then
+        elsif (UARTTX = '1') then
             Vector_Address <= UARTTX_ADDRESS;
-        else if (ANACMP = '1') then
+        elsif (ANACMP = '1') then
             Vector_Address <= ANACMP_ADDRESS;
         end if;
     end process;

@@ -243,7 +243,7 @@ begin
         -- Default ProgMAU signals
         PCUpdateEn <= '1';           -- Update to next PC
         PCControl <= PC_UPDATE_ONE;  -- Update PC = PC + 1
-        N_PCLoad <= '0';             -- Don't load fixed PC
+        N_PCLoad <= '1';             -- Don't load fixed PC
         HiLoSel <= '0';              -- Don't care
         PCOffset <= (others => '0'); -- Offset normally zero
         DBSel <= '0';                -- Usually take DataDB from ALU
@@ -561,9 +561,8 @@ begin
             BitSetClear     <= '0';             -- Don't care
             FlagMask        <= FLAGS_ZC;        -- Z, C
 
-            PreRegWrSel <= "000000000000000" & instr_cycle(1);
-
-            if 
+            -- Write to R0 on cycle 0, and R1 on cycle 1.
+            PreRegWrSel <= "000000" & instr_cycle(1);
         end if;
         
         if std_match(IR, OpNEG) then
@@ -1188,6 +1187,7 @@ begin
             -- Update PC on clocks 2/3 with DataDB
             PCUpdateEn <= instr_cycle(1) or instr_cycle(2);
             PCControl  <= PC_UPDATE_DATADB;
+            N_PCLoad   <= instr_cycle(2);
             HiLoSel    <= instr_cycle(2); 
 
             -- Clock dependent selections
@@ -1274,14 +1274,17 @@ begin
             if (instr_cycle(0) = '1') and (IR(9) = NewFlags(FLAG_T)) then
                 -- Don't update the instruction counter..
                 reset_instr_counter <= '0';
+                PCUpdateEn <= '0';
             end if;
-            if (instr_cycle(1) = '1') then
+            if (instr_cycle(1) = '1') and
+               (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
                 -- Take three cycles if two-word instruction.
-                if (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
                     reset_instr_counter <= '0';
-                else
-                    reset_instr_counter <= '1';
-                end if;
+                    PCUpdateEn <= '0';
+            end if;
+            if (instr_cycle(2) = '0') then
+                -- Increment the PC by two.
+                PCControl <= PC_UPDATE_TWO;
             end if;
         end if;
 
@@ -1300,14 +1303,21 @@ begin
             -- Don't write to a register.
             RegWr   <= '0';
 
-            -- Branch only if bit and condition match.
-            if (SREG(FLAG_Z) = '1') then
-                -- Reset on cycle 3 if a 2-word instruction, otherwise cycle 2.
-                if (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
-                    reset_instr_counter <= instr_cycle(2);
-                else
-                    reset_instr_counter <= instr_cycle(1);
-                end if;
+            -- Branch only if bit and condition match. (Z flag output from ALI)
+            if (NewFlags(FLAG_Z) = '1') then
+                -- Don't update the instruction counter..
+                reset_instr_counter <= '0';
+                PCUpdateEn <= '0';
+            end if;
+            if (instr_cycle(1) = '1') and
+               (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
+                -- Take three cycles if two-word instruction.
+                    reset_instr_counter <= '0';
+                    PCUpdateEn <= '0';
+            end if;
+            if (instr_cycle(2) = '0') then
+                -- Increment the PC by two.
+                PCControl <= PC_UPDATE_TWO;
             end if;
         end if;
 

@@ -214,7 +214,7 @@ begin
     ImmediateAddrLatch <= instr_cycle(1);
     
     -- Instruction decoding
-    process(IR, clock, instr_cycle, ProgDB, DataAB)
+    process(IR, clock, instr_cycle, ProgDB, DataAB, reg_access_enable, reg_index, NewFlags, SREG)
     begin        
         -- Default General Controls
         reset_instr_counter <= '1'; -- Assume instruction is 1 clock

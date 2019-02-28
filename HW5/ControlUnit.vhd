@@ -11,6 +11,7 @@
 --
 -- Inputs:
 --        clock                (std_logic)                               - System clock
+--        reset                (std_logic)                               - active low reset signal
 --        NewFlags             (std_logic_vector(NUM_FLAGS-2 downto 0))  - Flags from ALU
 --        SREG                 (std_logic_vector(NUM_FLAGS-1 downto 0))  - Status Register
 --        ProgDB               (std_logic_vector(INSTR_SIZE-1 downto 0)) - Program Data Bus
@@ -102,6 +103,7 @@ entity ControlUnit is
 
         -- Inputs
         clock               :    in     std_logic;
+        reset               :    in     std_logic;
         NewFlags            :    in     std_logic_vector(NUM_FLAGS-2 downto 0);
         SREG                :    in     std_logic_vector(NUM_FLAGS-1 downto 0);
         DataAB              :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0);
@@ -175,7 +177,7 @@ begin
     process(clock, ProgDB)
     begin
         if rising_edge(clock) then
-            if reset_instr_counter = '1' then
+            if (reset_instr_counter = '1') or (reset = '0') then
                 -- Synchronous reset to 1 in the rightmost place
                 instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
 

@@ -52,6 +52,8 @@
 --      02/04/19    David Kornfeld      Updated documentation
 --      02/08/19    David Kornfeld      Updated documentation
 --      02/24/19    David Kornfeld      Added whole SREG input and added double zero control signal
+--      02/26/19    David Kornfeld      Added signal declarations and types/first equations for MUL
+--      02/27/19    David Kornfeld      Debugged MUL and achieved full functionality w/ flags
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -77,6 +79,7 @@ entity ALU is
         BitSetClear     :    in   	std_logic;
         SettingClearing :    in   	std_logic;
         DoubleZero      :    in     std_logic;
+        MulSelect       :    in     std_logic;
         Result          :    out    std_logic_vector(NUM_BITS-1 downto 0);
         NewFlags        :    out  	std_logic_vector(NUM_FLAGS-2 downto 0)
     );
@@ -84,6 +87,20 @@ end ALU;
 ----------------------------------------------------------------------------------------------------
 architecture data_flow of ALU is
     
+    -- Type needed for multiplier
+    type std_logic_vector_array is array (0 to NUM_BITS-1) of 
+                                    std_logic_vector(NUM_BITS-1 downto 0);
+    -- Component needed for multiplier
+    component FullAdder
+        port (
+            A       :   in  std_logic;
+            B       :   in  std_logic;
+            Cin     :   in  std_logic;
+            Sum     :   out std_logic;
+            Cout    :   out std_logic
+        );
+    end component;
+
     -- Utility/readability
     constant ZEROS     	:    std_logic_vector(NUM_BITS-1 downto 0) := 
                                 std_logic_vector(to_unsigned(0, NUM_BITS));
@@ -96,6 +113,9 @@ architecture data_flow of ALU is
     signal CarryIn     	:    std_logic;
     signal CarryOut    	:    std_logic;
     signal SRout        :    std_logic_vector(NUM_BITS-1 downto 0);
+    signal MULCarries   :    std_logic_vector_array;
+    signal MULSums      :    std_logic_vector_array;
+    signal AandB        :    std_logic_vector_array;
     signal MULResult    :    std_logic_vector(2*NUM_BITS-1 downto 0);
     signal RegIndex    	:    integer := 0; 	-- Initialized purely for simulation reasons
                                          	-- Protects against out-of-range indexing
@@ -185,20 +205,121 @@ begin
     end process;
     
     -- Multiplier ##################################################################################
-    
+
+    -- Generate 'A and B' signals
+    AandBGenerate1: for i in 0 to NUM_BITS-1 generate
+        AandBGenerate2: for j in 0 to NUM_BITS-1 generate
+            AandB(i)(j) <= OperandA(i) and OperandB(j);
+        end generate;
+    end generate;
+
+    -- Generate a NMM for N-bits
+    MULOuterGenerate: for i in 0 to NUM_BITS-1 generate
+        MULInnerGenerate: for j in 1 to NUM_BITS-1 generate
+
+            -- First row of the NMM
+            lowest_row: if i=0 generate
+                U0: FullAdder port map 
+                    (AandB(j)(i),
+                    AandB(j-1)(i+1), 
+                    '0', 
+                    MULSums(i)(j-1), 
+                    MULCarries(i)(j-1));
+            end generate;
+
+            -- All middle rows of NMM
+            middle_rows: if (i>0 and i<NUM_BITS-1) generate
+
+                -- Need to differentiate between A input on last adder
+                middle_not_last_adder: if j<NUM_BITS-1 generate
+                UX: FullAdder port map
+                    (MULSums(i-1)(j), 
+                    AandB(j-1)(i+1),
+                    MULCarries(i-1)(j-1),
+                    MULSums(i)(j-1),
+                    MULCarries(i)(j-1));
+                end generate;
+
+                -- Last adder gets non-sum signal as A input
+                middle_last_adder: if j=NUM_BITS-1 generate
+                UX: FullAdder port map
+                    (AandB(j)(i),
+                    AandB(j-1)(i+1),
+                    MULCarries(i-1)(j-1),
+                    MULSums(i)(j-1),
+                    MULCarries(i)(j-1));
+                end generate;
+
+            end generate;
+
+            -- Lowest row has even more unique cases
+            last_row: if (i=NUM_BITS-1) generate
+
+                -- This one takes in zero for B
+                first_last_adder: if j=1 generate
+                UX: FullAdder port map
+                    (MULSums(i-1)(j), 
+                    '0',
+                    MULCarries(i-1)(j-1),
+                    MULSums(i)(j-1),
+                    MULCarries(i)(j-1));
+                end generate;
+
+                -- This one is the normal one
+                middle_last_adder: if (j>1 and j<NUM_BITS-1) generate
+                UX: FullAdder port map
+                    (MULSums(i-1)(j),
+                    MULCarries(i)(j-2),
+                    MULCarries(i-1)(j-1),
+                    MULSums(i)(j-1),
+                    MULCarries(i)(j-1));
+                end generate;
+
+                -- And this one takes in a special input for A
+                last_last_adder: if j=NUM_BITS-1 generate
+                UX: FullAdder port map
+                    (AandB(j)(i),
+                    MULCarries(i)(j-2),
+                    MULCarries(i-1)(j-1),
+                    MULSums(i)(j-1),
+                    MULCarries(i)(j-1));
+                end generate;
+
+            end generate;
+
+        end generate;
+    end generate;
+
+    -- Pick out the result from the signals we generated
+    MULResult(0) <= AandB(0)(0);
+    MULResultFetch1: for i in 1 to (NUM_BITS-1) generate
+        MULResult(i) <= MULSums(i-1)(0);
+    end generate;
+    MULResultFetch2: for i in 0 to (NUM_BITS-2) generate
+        MULResult(i+NUM_BITS) <= MULSums(NUM_BITS-1)(i);
+    end generate;
+    MULResult(2*NUM_BITS-1) <= MULCarries(NUM_BITS-1)(NUM_BITS-2);
 
     -- Output selection and loading to/from bits ###################################################
     
     -- Decode the binary to an index we can use
     RegIndex <= conv_integer(TSCBitSelect);
     
-    process(Sum, SRout, ALUResultSel, TLoad, TFlag, SettingClearing, BitSetClear, RegIndex)
+    process(Sum, SRout, ALUResultSel, TLoad, TFlag, SettingClearing, 
+            BitSetClear, RegIndex, MulSelect, MULResult)
     begin
         -- Result is either from the adder (through the F block) or the shifter/rotator
-        if ALUResultSel = '0' then
+        if (ALUResultSel = '0') and (MulSelect = '0') then
             pre_result <= Sum;
-        else -- ALUResultSel = '1'
+        end if;
+        if  (ALUResultSel = '1') and (MulSelect = '0') then
             pre_result <= SRout;
+        end if;
+        if  (ALUResultSel = '0') and (MulSelect = '1') then
+            pre_result <= MULResult(NUM_BITS-1 downto 0);
+        end if;
+        if  (ALUResultSel = '1') and (MulSelect = '1') then
+            pre_result <= MULResult(2*NUM_BITS-1 downto NUM_BITS);
         end if;
                             
         -- If doing a BLD instruction
@@ -247,8 +368,9 @@ begin
     
     -- C Flag. Carry. Follows normal behavior for all left shifts and arithmetic 
     --          operations. It's the low bit when rotating right and set when doing COM
-    pre_flags(FLAG_C) <=    CarryOut when ALUResultSel='0' else -- Arithmetic
-                            OperandA(0);
+    pre_flags(FLAG_C) <=    CarryOut    when (ALUResultSel='0' and MulSelect='0') else -- Arithmetic
+                            OperandA(0) when (ALUResultSel='1' and MulSelect='0') else -- Shift/Rot
+                            pre_result(NUM_BITS-1);                                    -- MUL
                                 
     -- Connect output of result/flags ##############################################################
     result      <= pre_result;

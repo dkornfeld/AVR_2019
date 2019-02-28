@@ -52,6 +52,7 @@ package AVR_2019_constants is
     constant FLAGS_ZNVS   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00011110";
     constant FLAGS_T      : std_logic_vector(NUM_FLAGS-1 downto 0) := "01000000";
     constant FLAGS_C      : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000001";
+    constant FLAGS_ZC     : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000011";
     constant FLAGS_NONE   : std_logic_vector(NUM_FLAGS-1 downto 0) := "00000000";
 
     -- ALU Constants ###############################################################################

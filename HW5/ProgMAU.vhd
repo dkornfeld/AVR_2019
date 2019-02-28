@@ -59,6 +59,8 @@ architecture data_flow of ProgMAU is
     -- For incrementing the PC
     constant ONE    :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(1, 
                                                                                     PC_WIDTH));
+    constant TWO    :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(2,
+                                                                                    PC_WIDTH));
     -- For displacing the DataDB input for CALL/RTS
     constant ZEROS_8:   std_logic_vector(NUM_BITS-1 downto 0) := (others => '0');
 
@@ -96,12 +98,13 @@ begin
 
     -- Mux the Non-PC input to the adder ###########################################################
     
-    AdderInB    <=  ONE                     when PCControl = "000" else
-                    Offset                  when PCControl = "001" else
-                    AddrDataIn              when PCControl = "010" else
-                    HiLoSelectedDataDB      when PCControl = "011" else
-                    RegZ;                   -- when PCControl = "100" Same output for all others to
-                                            -- save space
+    AdderInB    <=  ONE                     when PCControl = PC_UPDATE_ONE      else
+                    TWO                     when PCControl = PC_UPDATE_TWO      else
+                    Offset                  when PCControl = PC_UPDATE_OFFSET   else
+                    AddrDataIn              when PCControl = PC_UPDATE_ADDRDATA else
+                    HiLoSelectedDataDB      when PCControl = PC_UPDATE_DATADB   else
+                    RegZ;                   -- when PCControl = PC_UPDATE_REGZ Same output for all 
+                                            -- others to save space
 
     -- Mask the PC's input to the adder for loads ##################################################
     MaskPCGenerate: for i in 0 to PC_WIDTH-1 generate

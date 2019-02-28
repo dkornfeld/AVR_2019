@@ -74,6 +74,7 @@ architecture data_flow of ALU_TEST is
     signal BitSetClear      :   std_logic;
     signal SettingClearing  :   std_logic;
     signal DoubleZero       :   std_logic;
+    signal MulSelect        :   std_logic;
     signal ALUResult        :   std_logic_vector(7 downto 0);
     signal RegAOutput       :   std_logic_vector(7 downto 0);
 
@@ -118,6 +119,7 @@ begin
         BitSetClear     => BitSetClear,
         SettingClearing => SettingClearing,
         DoubleZero      => DoubleZero,
+        MulSelect       => MulSelect,
 
         -- Outputs
         Result          => ALUResult,
@@ -172,6 +174,7 @@ begin
         BitSetClear     => BitSetClear,
         SettingClearing => SettingClearing,
         DoubleZero      => DoubleZero,
+        MulSelect       => MulSelect,
 
         -- Register Control Signals
         SFlag       => SFlag,

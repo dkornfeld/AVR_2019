@@ -36,7 +36,7 @@ architecture TB_ARCHITECTURE of ALUTESTE_tb is
     
     -- Test Vectors (copied directly from ALU_tb and modified with BSETs/BLCRs)
     -- (Instruction, A, B, Result, ExpectedNewFlags)
-    constant    TEST_VECTORS    :   test_tuple(1 to 77) :=  (
+    constant    TEST_VECTORS    :   test_tuple(1 to 91) :=  (
         -- Quick toggle of the interrupt flag to see it working and give it a defined value
         "1001010001111000"  & X"00" & X"A3" & "--------"& "-------", -- BSET 7
         "1001010011111000"  & X"FF" & X"A3" & "--------"& "-------", -- BCLR 7
@@ -115,7 +115,21 @@ architecture TB_ARCHITECTURE of ALUTESTE_tb is
         OpSBIW              & X"00" & X"AA" & X"00"     & "-000000", -- SBIW 0010, 00;
         OpSBIW              & X"00" & X"00" & X"00"     & "-000000", -- SBIW 0000, 00;
         OpSBIW              & X"00" & X"00" & X"00"     & "-000010", -- SBIW 0000, 00;
-        "----------------"  & "--------" & "--------" & "--------" & "-000010" -- Check flags
+        OpMUL               & X"02" & X"10" & X"20"     & "-000010", -- MUL 02, 10;
+        OpMUL               & X"02" & X"10" & X"00"     & "-----00", -- MUL 02, 10;
+        OpMUL               & X"FF" & X"FF" & X"01"     & "-----00", -- MUL FF, FF;
+        OpMUL               & X"FF" & X"FF" & X"FE"     & "-----00", -- MUL FF, FF;
+        OpMUL               & X"FF" & X"01" & X"FF"     & "-----01", -- MUL FF, 01;
+        OpMUL               & X"FF" & X"01" & X"00"     & "-----01", -- MUL FF, 01;
+        OpMUL               & X"00" & X"00" & X"00"     & "-----00", -- MUL 00, 00;
+        OpMUL               & X"00" & X"00" & X"00"     & "-----10", -- MUL 00, 00;
+        OpMUL               & X"FF" & X"00" & X"00"     & "-----10", -- MUL FF, 00;
+        OpMUL               & X"FF" & X"00" & X"00"     & "-----10", -- MUL FF, 00;
+        OpMUL               & X"5A" & X"02" & X"B4"     & "-----10", -- MUL 5A, 02;
+        OpMUL               & X"5A" & X"02" & X"00"     & "-----01", -- MUL 5A, 02;
+        OpMUL               & X"02" & X"80" & X"00"     & "-----00", -- MUL 02, 80;
+        OpMUL               & X"02" & X"80" & X"01"     & "-----10", -- MUL 02, 80;
+        "----------------"  & "--------" & "--------" & "--------" & "-----00" -- Check flags
     );
     
     -- Timing Constants ----------------------------------------------------------------------------

@@ -84,7 +84,7 @@ begin -- #######################################################################
 
         -- Begin the tests
         Reset <= '1';
-        for i in 1 to 1000 loop
+        for i in 1 to 5000 loop
         
             wait for CLK_PERIOD; -- run for a set number of clock cycles
             

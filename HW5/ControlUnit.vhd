@@ -172,6 +172,8 @@ architecture data_flow of ControlUnit is
     signal PreRegBSel : std_logic_vector(6 downto 0);
     signal PreRegWrSel : std_logic_vector(6 downto 0);
 
+    -- Storage for whether the next instruction is two words
+    signal NextInsnTwoWords : std_logic;
 
     -- DataMAU signals (reg vs mem)
     signal reg_access_enable : std_logic; -- 1 when load/store accesses registers instead of memory
@@ -195,6 +197,19 @@ begin
             else
                 -- Synchronous Reset
                 instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
+            end if;
+        end if;
+    end process;
+
+    -- Latch whether the next instruction is two words
+    process(clock, ProgDB)
+    begin
+        if rising_edge(clock) then
+            if (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or 
+                std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
+                NextInsnTwoWords <= '1';
+            else
+                NextInsnTwoWords <= '0';
             end if;
         end if;
     end process;
@@ -1310,17 +1325,10 @@ begin
             if (instr_cycle(0) = '1') and (IR(9) = NewFlags(FLAG_T)) then
                 -- Don't update the instruction counter..
                 reset_instr_counter <= '0';
-                PCUpdateEn <= '0';
             end if;
-            if (instr_cycle(1) = '1') and
-               (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
+            if (instr_cycle(1) = '1') and (NextInsnTwoWords = '1') then
                 -- Take three cycles if two-word instruction.
                     reset_instr_counter <= '0';
-                    PCUpdateEn <= '0';
-            end if;
-            if (instr_cycle(2) = '0') then
-                -- Increment the PC by two.
-                PCControl <= PC_UPDATE_TWO;
             end if;
         end if;
 
@@ -1339,21 +1347,17 @@ begin
             -- Don't write to a register.
             RegWr   <= '0';
 
-            -- Branch only if bit and condition match. (Z flag output from ALI)
-            if (NewFlags(FLAG_Z) = '1') then
+            -- Default to next instruction.
+            reset_instr_counter <= '1';
+
+            -- Skip only if bit and condition match. (Z flag output from ALI)
+            if (instr_cycle(0) = '1') and (NewFlags(FLAG_Z) = '1') then
                 -- Don't update the instruction counter..
                 reset_instr_counter <= '0';
-                PCUpdateEn <= '0';
             end if;
-            if (instr_cycle(1) = '1') and
-               (std_match(ProgDB, OpSTS) or std_match(ProgDB, OpLDS) or std_match(ProgDB, OpJMP) or std_match(ProgDB, OpCALL)) then
+            if (instr_cycle(1) = '1') and (NextInsnTwoWords = '1') then
                 -- Take three cycles if two-word instruction.
                     reset_instr_counter <= '0';
-                    PCUpdateEn <= '0';
-            end if;
-            if (instr_cycle(2) = '0') then
-                -- Increment the PC by two.
-                PCControl <= PC_UPDATE_TWO;
             end if;
         end if;
 

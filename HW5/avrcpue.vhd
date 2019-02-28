@@ -52,6 +52,16 @@ entity  AVR_CPU  is
         Reset   :  in     std_logic;                       -- reset signal (active low)
         INT0    :  in     std_logic;                       -- interrupt signal (active low)
         INT1    :  in     std_logic;                       -- interrupt signal (active low)
+        T1CAP   :  in     std_logic;                       -- timer 1 capture event    (active high)
+        T1CPA   :  in     std_logic;                       -- timer 1 compare match A  (active high)
+        T1CPB   :  in     std_logic;                       -- timer 1 compare match B  (active high)
+        T1OVF   :  in     std_logic;                       -- timer 1 overflow         (active high)
+        T0OVF   :  in     std_logic;                       -- timer 0 overflow         (active high)
+        IRQSPI  :  in     std_logic;                       -- serial transfer complete (active high)
+        UARTRX  :  in     std_logic;                       -- UART receive complete    (active high)
+        UARTRE  :  in     std_logic;                       -- UART data register empty (active high)
+        UARTTX  :  in     std_logic;                       -- UART transmit complete   (active high)
+        ANACMP  :  in     std_logic;                       -- analog comparator        (active high)
         clock   :  in     std_logic;                       -- system clock
         ProgAB  :  out    std_logic_vector(15 downto 0);   -- program memory address bus
         DataAB  :  out    std_logic_vector(15 downto 0);   -- data memory address bus
@@ -65,6 +75,7 @@ end  AVR_CPU;
 architecture data_flow of AVR_CPU is
     -- Intermediate signals between internal units #################################################
     -- Control Unit
+    signal IRQ              :   std_logic;
     signal OPBInSel         :   std_logic;
     signal DBSel            :   std_logic;
     signal DBEnableOutput   :   std_logic;
@@ -125,6 +136,7 @@ architecture data_flow of AVR_CPU is
     -- ProgMAU
     signal Offset           :   std_logic_vector(PC_WIDTH-1 downto 0);
     signal AddrDataIn       :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
+    signal Vector_Address   :   std_logic_vector(PC_WIDTH-1 downto 0);
 
     signal PCUpdateEn       :   std_logic;
     signal N_PCLoad         :   std_logic;
@@ -192,6 +204,7 @@ begin
         SREG                => SREG                ,
         DataAB              => PreDataAB           ,
         ProgDB              => ProgDB              ,
+        IRQ                 => IRQ                 ,
         -- General Controls => -- General Controls ,
         DataRd              => DataRd              ,
         DataWr              => DataWr              ,
@@ -304,6 +317,7 @@ begin
         RegZ            => RegZ            ,
         ProgDB          => ProgDB          ,
         DataDB          => DataDB          ,
+        Vector_Address  => Vector_Address  ,
         PCUpdateEn      => PCUpdateEn      ,
         N_PCLoad        => N_PCLoad        ,
         PCControl       => PCControl       ,
@@ -311,5 +325,26 @@ begin
         PMAUProgDBLatch => PMAUProgDBLatch ,
         ProgAB          => ProgAB          ,
         PC              => PC              
+    );
+
+    -- Map our interrupt controller
+    IRQController : entity work.IRQController
+    port map(
+        RESET           => Reset ,
+        INT0            => INT0  ,
+        INT1            => INT1  ,
+        T1CAP           => T1CAP ,
+        T1CPA           => T1CPA ,
+        T1CPB           => T1CPB ,
+        T1OVF           => T1OVF ,
+        T0OVF           => T0OVF ,
+        IRQSPI          => IRQSPI,
+        UARTRX          => UARTRX,
+        UARTRE          => UARTRE,
+        UARTTX          => UARTTX,
+        ANACMP          => ANACMP,
+
+        IRQ             => IRQ,
+        Vector_Address  => Vector_Address
     );
 end architecture;

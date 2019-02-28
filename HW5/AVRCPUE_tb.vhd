@@ -32,13 +32,25 @@ architecture TB_ARCHITECTURE of AVRCPUE_tb is
 
     -- Intermediate signals used to connect components
     signal    ProgDB    :   std_logic_vector(15 downto 0);
-    signal    INT0      :   std_logic;
-    signal    INT1      :   std_logic;
     signal    ProgAB    :   std_logic_vector(15 downto 0);
     signal    DataAB    :   std_logic_vector(15 downto 0);
     signal    DataWr    :   std_logic;
     signal    DataRd    :   std_logic;
     signal    DataDB    :   std_logic_vector(7 downto 0);
+
+    -- Interrupt Stimuli
+    signal    INT0      :   std_logic;
+    signal    INT1      :   std_logic;
+    signal    T1CAP     :   std_logic;
+    signal    T1CPA     :   std_logic;
+    signal    T1CPB     :   std_logic;
+    signal    T1OVF     :   std_logic;
+    signal    T0OVF     :   std_logic;
+    signal    IRQSPI    :   std_logic;
+    signal    UARTRX    :   std_logic;
+    signal    UARTRE    :   std_logic;
+    signal    UARTTX    :   std_logic;
+    signal    ANACMP    :   std_logic;
 
 begin -- ###########################################################################################
     -- Unit Under Test port map
@@ -46,9 +58,19 @@ begin -- #######################################################################
     UUT : entity work.AVR_CPU
     port map(
         ProgDB => ProgDB ,  
-        Reset  => Reset  ,  
-        INT0   => INT0   ,  
-        INT1   => INT1   ,  
+        Reset  => Reset  , 
+        INT0   => INT0  ,
+        INT1   => INT1  ,
+        T1CAP  => T1CAP ,
+        T1CPA  => T1CPA ,
+        T1CPB  => T1CPB ,
+        T1OVF  => T1OVF ,
+        T0OVF  => T0OVF ,
+        IRQSPI => IRQSPI,
+        UARTRX => UARTRX,
+        UARTRE => UARTRE,
+        UARTTX => UARTTX,
+        ANACMP => ANACMP, 
         clock  => CLK    ,  
         ProgAB => ProgAB ,  
         DataAB => DataAB ,  

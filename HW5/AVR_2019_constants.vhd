@@ -13,6 +13,7 @@
 --      02/08/19    David Kornfeld      Moved constants for ALU
 --      02/09/19    David Kornfeld      Changed maximum instruction clocks and updated documentation
 --      02/20/19    David Kornfeld      Fixed ProgMAU constants 
+--      02/28/19    David Kornfeld      Added more ProgMAU constants
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -85,12 +86,11 @@ package AVR_2019_constants is
     -- PC update select constants
     constant PC_UPDATE_ZERO      :   std_logic_vector(2 downto 0) := "000";
     constant PC_UPDATE_ONE       :   std_logic_vector(2 downto 0) := "001";
-    constant PC_UPDATE_TWO       :   std_logic_vector(2 downto 0) := "010";
-    constant PC_UPDATE_OFFSET    :   std_logic_vector(2 downto 0) := "011";
-    constant PC_UPDATE_PROGDB    :   std_logic_vector(2 downto 0) := "100";
-    constant PC_UPDATE_DATADB    :   std_logic_vector(2 downto 0) := "101";
-    constant PC_UPDATE_REGZ      :   std_logic_vector(2 downto 0) := "110";
-
+    constant PC_UPDATE_OFFSET    :   std_logic_vector(2 downto 0) := "010";
+    constant PC_UPDATE_PROGDB    :   std_logic_vector(2 downto 0) := "011";
+    constant PC_UPDATE_DATADB    :   std_logic_vector(2 downto 0) := "100";
+    constant PC_UPDATE_REGZ      :   std_logic_vector(2 downto 0) := "101";
+    constant PC_UPDATE_IRQ       :   std_logic_vector(2 downto 0) := "110";
 
     -- Constants for Addr Register readability
     constant X_LOW      :    integer := 26;

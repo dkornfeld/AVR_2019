@@ -35,6 +35,7 @@
 -- Revision History:
 --  01/24/19    David Kornfeld      Initial Revision
 --  02/21/19    David Kornfeld      Added functional code and updated IO ports/documentation
+--  02/28/19    David Kornfeld      Added Interrupt address input
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.numeric_std.all;
@@ -49,6 +50,7 @@ entity ProgMAU is
         RegZ            :   in  std_logic_vector(PC_WIDTH-1 downto 0);
         ProgDB          :   in  std_logic_vector(DATA_AB_SIZE-1 downto 0);
         DataDB          :   in  std_logic_vector(NUM_BITS-1 downto 0);
+        Vector_Address  :   in  std_logic_vector(PC_WIDTH-1 downto 0);
         PCUpdateEn      :   in  std_logic;
         N_PCLoad        :   in  std_logic;
         PCControl       :   in  std_logic_vector(2 downto 0);
@@ -64,8 +66,6 @@ architecture data_flow of ProgMAU is
     constant ZERO   :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(0,
                                                                                     PC_WIDTH));
     constant ONE    :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(1, 
-                                                                                    PC_WIDTH));
-    constant TWO    :   std_logic_vector(PC_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(2,
                                                                                     PC_WIDTH));
     -- For displacing the DataDB input for CALL/RTS
     constant ZEROS_8:   std_logic_vector(NUM_BITS-1 downto 0) := (others => '0');
@@ -120,11 +120,11 @@ begin
     
     AdderInB    <=  ZERO                    when PCControl = PC_UPDATE_ZERO     else
                     ONE                     when PCControl = PC_UPDATE_ONE      else
-                    TWO                     when PCControl = PC_UPDATE_TWO      else
                     Offset                  when PCControl = PC_UPDATE_OFFSET   else
                     Latched_ProgDB          when PCControl = PC_UPDATE_PROGDB   else
                     HiLoSelectedDataDB      when PCControl = PC_UPDATE_DATADB   else
-                    RegZ;                   -- when PCControl = PC_UPDATE_REGZ Same output for all 
+                    RegZ                    when PCControl = PC_UPDATE_REGZ     else
+                    Vector_Address;         -- when PCControl = PC_UPDATE_IRQ. Same output for
                                             -- others to save space
 
     -- Mask the PC's input to the adder for loads ##################################################

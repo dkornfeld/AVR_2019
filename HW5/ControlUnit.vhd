@@ -111,6 +111,7 @@ entity ControlUnit is
         SREG                :    in     std_logic_vector(NUM_FLAGS-1 downto 0);
         DataAB              :    in     std_logic_vector(DATA_AB_SIZE-1 downto 0);
         ProgDB              :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
+        IRQ                 :    in     std_logic;
         -- General Control Signals
         DataRd              :    out    std_logic;
         DataWr              :    out    std_logic;

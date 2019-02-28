@@ -98,7 +98,7 @@ use work.opcodes.all;
 entity ControlUnit is
     port         (
         -- TEST TODO Remove This
-        IR                  :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
+        --IR                  :    in     std_logic_vector(INSTR_SIZE-1 downto 0);
 
         -- Inputs
         clock               :    in     std_logic;
@@ -152,7 +152,7 @@ end ControlUnit;
 -----------------------------------------------------------------------------------------
 architecture data_flow of ControlUnit is
     -- Current Instruction Register
-    --signal IR             :    std_logic_vector(INSTR_SIZE-1 downto 0);
+    signal IR             :    std_logic_vector(INSTR_SIZE-1 downto 0);
 
     -- Storage for the current cycle count
     signal instr_cycle    :    std_logic_vector(MAX_INSTR_CLKS-1 downto 0); -- 1-hot cycle
@@ -180,7 +180,7 @@ begin
                 instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
 
                 -- Update IR on start of new instruction
-                --IR <= ProgDB;
+                IR <= ProgDB;
             else
                 -- Shift the bit left
                 instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';

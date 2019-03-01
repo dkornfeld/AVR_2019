@@ -333,7 +333,6 @@ begin
     -- Map our interrupt controller
     IRQController : entity work.IRQController
     port map(
-        RESET           => Reset ,
         INT0            => INT0  ,
         INT1            => INT1  ,
         T1CAP           => T1CAP ,

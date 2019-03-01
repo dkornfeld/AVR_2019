@@ -8,7 +8,6 @@
 --
 -- Inputs: (interrupt requests)
 --      IRQClear        (std_logic)         - Clears the fact that an interrupt happened (taken)
---      RESET           (std_logic)         - hardware pin and watchdog restet  (active low)
 --      INT0            (std_logic)         - external interrupt request 0      (active low)
 --      INT1            (std_logic)         - external interrupt request 1      (active low)
 --      T1CAP           (std_logic)         - timer 1 capture event             (active high)
@@ -28,6 +27,7 @@
 --
 -- Revision History:
 --      02/25/19    David Kornfeld      Initial Revision
+--      02/28/19    David Kornfeld      Removed reset input
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -39,7 +39,6 @@ entity IRQController is
     port (
         IRQClear    :   in std_logic;
 
-        RESET       :   in std_logic;
         INT0        :   in std_logic;
         INT1        :   in std_logic;
         T1CAP       :   in std_logic;
@@ -60,7 +59,6 @@ end IRQController;
 ----------------------------------------------------------------------------------------------------
 architecture data_flow of IRQController is
     -- Constants for address vectors
-    constant RESET_ADDRESS  :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0000";
     constant INT0_ADDRESS   :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0001";
     constant INT1_ADDRESS   :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0002";
     constant T1CAP_ADDRESS  :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0003";
@@ -78,8 +76,7 @@ architecture data_flow of IRQController is
     signal Pre_Vector_Address   :   std_logic_vector(PC_WIDTH-1 downto 0);
 begin
     -- Generate the IRQ output (if any interrupt occured) ##########################################
-    Pre_IRQ <=  (not RESET) or  -- Active low
-                (not INT0)  or  -- Active low
+    Pre_IRQ <=  (not INT0)  or  -- Active low
                 (not INT1)  or  -- Active low
                 T1CAP       or  -- Active high
                 T1CPA       or  -- Active high
@@ -101,11 +98,9 @@ begin
     end process;
 
     -- Output the proper address ###################################################################
-    process (RESET, INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
+    process (INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
     begin
-        if (RESET = '0') then           -- Priority is given to items higher up on this list
-            Pre_Vector_Address <= RESET_ADDRESS;
-        elsif (INT0 = '0') then
+        if (INT0 = '0') then                    -- Priority is given higher up the list
             Pre_Vector_Address <= INT0_ADDRESS;
         elsif (INT1 = '0') then
             Pre_Vector_Address <= INT1_ADDRESS;

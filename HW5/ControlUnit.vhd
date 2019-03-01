@@ -118,6 +118,7 @@ entity ControlUnit is
         OPBInSel            :    out    std_logic;
         DBSel               :    out    std_logic;
         DBEnableOutput      :    out    std_logic;
+        IRQClear            :    out    std_logic;
         -- Raw values
         IR_Immediate        :    out    std_logic_vector(NUM_BITS-1 downto 0);
         IR_Offset           :    out    std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);

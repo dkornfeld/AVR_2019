@@ -7,6 +7,7 @@
 --                  outputs the address of the required jump.
 --
 -- Inputs: (interrupt requests)
+--      IRQClear        (std_logic)         - Clears the fact that an interrupt happened (taken)
 --      RESET           (std_logic)         - hardware pin and watchdog restet  (active low)
 --      INT0            (std_logic)         - external interrupt request 0      (active low)
 --      INT1            (std_logic)         - external interrupt request 1      (active low)
@@ -36,6 +37,8 @@ use work.AVR_2019_constants.all;
 ----------------------------------------------------------------------------------------------------
 entity IRQController is
     port (
+        IRQClear    :   in std_logic;
+
         RESET       :   in std_logic;
         INT0        :   in std_logic;
         INT1        :   in std_logic;
@@ -70,9 +73,12 @@ architecture data_flow of IRQController is
     constant UARTRE_ADDRESS :   std_logic_vector(PC_WIDTH-1 downto 0) := X"000A";
     constant UARTTX_ADDRESS :   std_logic_vector(PC_WIDTH-1 downto 0) := X"000B";
     constant ANACMP_ADDRESS :   std_logic_vector(PC_WIDTH-1 downto 0) := X"000C";
+
+    signal Pre_IRQ              :   std_logic;
+    signal Pre_Vector_Address   :   std_logic_vector(PC_WIDTH-1 downto 0);
 begin
     -- Generate the IRQ output (if any interrupt occured) ##########################################
-    IRQ     <=  (not RESET) or  -- Active low
+    Pre_IRQ <=  (not RESET) or  -- Active low
                 (not INT0)  or  -- Active low
                 (not INT1)  or  -- Active low
                 T1CAP       or  -- Active high
@@ -85,36 +91,51 @@ begin
                 UARTRE      or  -- Active high
                 UARTTX      or  -- Active high
                 ANACMP;         -- Active high
+    process(Pre_IRQ, IRQClear)
+    begin
+        if IRQClear = '1' then
+            IRQ <= '0';
+        elsif rising_edge(Pre_IRQ) then
+            IRQ <= '1';
+        end if;
+    end process;
 
     -- Output the proper address ###################################################################
     process (RESET, INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
     begin
         if (RESET = '0') then           -- Priority is given to items higher up on this list
-            Vector_Address <= RESET_ADDRESS;
+            Pre_Vector_Address <= RESET_ADDRESS;
         elsif (INT0 = '0') then
-            Vector_Address <= INT0_ADDRESS;
+            Pre_Vector_Address <= INT0_ADDRESS;
         elsif (INT1 = '0') then
-            Vector_Address <= INT1_ADDRESS;
+            Pre_Vector_Address <= INT1_ADDRESS;
         elsif (T1CAP = '1') then
-            Vector_Address <= T1CAP_ADDRESS;
+            Pre_Vector_Address <= T1CAP_ADDRESS;
         elsif (T1CPA = '1') then
-            Vector_Address <= T1CPA_ADDRESS;
+            Pre_Vector_Address <= T1CPA_ADDRESS;
         elsif (T1CPB = '1') then
-            Vector_Address <= T1CPB_ADDRESS;
+            Pre_Vector_Address <= T1CPB_ADDRESS;
         elsif (T1OVF = '1') then
-            Vector_Address <= T1OVF_ADDRESS;
+            Pre_Vector_Address <= T1OVF_ADDRESS;
         elsif (T0OVF = '1') then
-            Vector_Address <= T0OVF_ADDRESS;
+            Pre_Vector_Address <= T0OVF_ADDRESS;
         elsif (IRQSPI = '1') then
-            Vector_Address <= IRQSPI_ADDRESS;
+            Pre_Vector_Address <= IRQSPI_ADDRESS;
         elsif (UARTRX = '1') then
-            Vector_Address <= UARTRX_ADDRESS;
+            Pre_Vector_Address <= UARTRX_ADDRESS;
         elsif (UARTRE = '1') then
-            Vector_Address <= UARTRE_ADDRESS;
+            Pre_Vector_Address <= UARTRE_ADDRESS;
         elsif (UARTTX = '1') then
-            Vector_Address <= UARTTX_ADDRESS;
+            Pre_Vector_Address <= UARTTX_ADDRESS;
         elsif (ANACMP = '1') then
-            Vector_Address <= ANACMP_ADDRESS;
+            Pre_Vector_Address <= ANACMP_ADDRESS;
+        end if;
+    end process;
+
+    process(Pre_IRQ)
+    begin
+        if rising_edge(Pre_IRQ) then
+            Vector_Address <= Pre_Vector_Address;
         end if;
     end process;
 end architecture;

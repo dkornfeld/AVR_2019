@@ -10,7 +10,8 @@
 --      9 May 00    Glen George     Updated comments.
 --      7 May 02    Glen George     Updated comments.
 --      21 Jan 08   Glen George     Updated comments.
---      2/28/19     David Kornfeld  Added our implementation
+--      02/28/19    David Kornfeld  Added our implementation
+--      02/28/19    David Kornfeld  Added Interrupt Vector Controller
 --
 ----------------------------------------------------------------------------------------------------
 
@@ -79,6 +80,7 @@ architecture data_flow of AVR_CPU is
     signal OPBInSel         :   std_logic;
     signal DBSel            :   std_logic;
     signal DBEnableOutput   :   std_logic;
+    signal IRQClear         :   std_logic;
 
     signal IR_Immediate     :   std_logic_vector(NUM_BITS-1 downto 0);
     signal IR_Offset        :   std_logic_vector(DATA_OFFSET_SIZE-1 downto 0);
@@ -211,6 +213,7 @@ begin
         OPBInSel            => OPBInSel            ,
         DBSel               => DBSel               ,
         DBEnableOutput      => DBEnableOutput      ,
+        IRQClear            => IRQClear            ,
         -- Raw values       => -- Raw values       ,
         IR_Immediate        => IR_Immediate        ,
         IR_Offset           => IR_Offset           ,
@@ -345,6 +348,7 @@ begin
         ANACMP          => ANACMP,
 
         IRQ             => IRQ,
+        IRQClear        => IRQClear,
         Vector_Address  => Vector_Address
     );
 end architecture;

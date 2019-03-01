@@ -15,6 +15,7 @@
 --                                  updated commenting.
 --     21 Jan 08  Glen George       Updated commenting.
 --     17 Jan 18  Glen George       Updated commenting.
+--     28 Feb 19  Bobby Abrahamson  Modified ROM to test MUL, IO, NOP insns.
 --
 ----------------------------------------------------------------------------
 
@@ -169,7 +170,7 @@ begin
 
     -- always read the value at the current address
     ProgDB <= ROMbits(CONV_INTEGER(ProgAB)) when (CONV_INTEGER(ProgAB) <= ROMbits'high)  else
-              X"E0C0";    -- NOP instruction
+              X"0000";    -- NOP instruction
 
 
     -- process to handle Reset

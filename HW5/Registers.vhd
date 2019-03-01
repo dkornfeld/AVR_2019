@@ -37,6 +37,7 @@
 --        02/05/19    David Kornfeld          Fixed Interrupt flag sensitivity
 --        02/07/19    David Kornfeld          Added 16-bit register bus and reset on SP
 --        02/08/19    Bobby Abrahamson        Increased select width, support for IO r/w
+--        02/27/19    Bobby Abrahamson        Removed SFlag and redid IO register access logic
 -----------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

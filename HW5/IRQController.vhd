@@ -28,6 +28,7 @@
 --
 -- Revision History:
 --      02/25/19    David Kornfeld      Initial Revision
+--      02/28/19    David Kornfeld      Redefined behavior on reset
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

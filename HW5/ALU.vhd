@@ -54,6 +54,7 @@
 --      02/24/19    David Kornfeld      Added whole SREG input and added double zero control signal
 --      02/26/19    David Kornfeld      Added signal declarations and types/first equations for MUL
 --      02/27/19    David Kornfeld      Debugged MUL and achieved full functionality w/ flags
+--      02/28/19    David Kornfeld      Fixed F block behavior on undefined input
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -148,7 +149,8 @@ begin
         Fout(i)    <=   FSRControl(0)   when    (OperandA(i)='0') and (OperandB(i)='0') else
                         FSRControl(1)   when    (OperandA(i)='0') else -- (OperandB(i)='1')
                         FSRControl(2)   when    (OperandA(i)='1') and (OperandB(i)='0') else
-                        FSRControl(3)   when    (OperandA(i)='1') else
+                        FSRControl(3)   when    (OperandA(i)='1') else -- (OperandB(i)='1')
+                        -- For cases when A is undefined, but B is
                         FSRControl(0)   when    (OperandB(i)='0') else
                         FSRControl(1)   when    (OperandB(i)='1');
     end generate;

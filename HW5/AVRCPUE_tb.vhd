@@ -138,7 +138,7 @@ begin -- #######################################################################
             -- And also test for our ability to reset mid-execution.
             if (i = 95) then
                 Reset <= '0';
-                wait for (5 * CLK_PERIOD) - 1 ns;
+                wait for (5 * CLK_PERIOD) - 2 ns;
                 Reset <= '1';
             end if;
             

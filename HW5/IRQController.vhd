@@ -8,6 +8,7 @@
 --
 -- Inputs: (interrupt requests)
 --      IRQClear        (std_logic)         - Clears the fact that an interrupt happened (taken)
+--      RESET           (std_logic)         - hardware pin and watchdog restet  (active low)
 --      INT0            (std_logic)         - external interrupt request 0      (active low)
 --      INT1            (std_logic)         - external interrupt request 1      (active low)
 --      T1CAP           (std_logic)         - timer 1 capture event             (active high)
@@ -27,7 +28,6 @@
 --
 -- Revision History:
 --      02/25/19    David Kornfeld      Initial Revision
---      02/28/19    David Kornfeld      Removed reset input
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -39,6 +39,7 @@ entity IRQController is
     port (
         IRQClear    :   in std_logic;
 
+        RESET       :   in std_logic;
         INT0        :   in std_logic;
         INT1        :   in std_logic;
         T1CAP       :   in std_logic;
@@ -59,6 +60,7 @@ end IRQController;
 ----------------------------------------------------------------------------------------------------
 architecture data_flow of IRQController is
     -- Constants for address vectors
+    constant RESET_ADDRESS  :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0000";
     constant INT0_ADDRESS   :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0001";
     constant INT1_ADDRESS   :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0002";
     constant T1CAP_ADDRESS  :   std_logic_vector(PC_WIDTH-1 downto 0) := X"0003";
@@ -90,7 +92,7 @@ begin
                 ANACMP;         -- Active high
     process(Pre_IRQ, IRQClear)
     begin
-        if IRQClear = '1' then
+        if RESET = '0' or IRQClear = '1' then
             IRQ <= '0';
         elsif rising_edge(Pre_IRQ) then
             IRQ <= '1';
@@ -98,9 +100,9 @@ begin
     end process;
 
     -- Output the proper address ###################################################################
-    process (INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
+    process (RESET, INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
     begin
-        if (INT0 = '0') then                    -- Priority is given higher up the list
+        if (INT0 = '0') then                        -- Priority given in this order
             Pre_Vector_Address <= INT0_ADDRESS;
         elsif (INT1 = '0') then
             Pre_Vector_Address <= INT1_ADDRESS;

@@ -1,11 +1,18 @@
 -- Title:   Test Bench for AVR CPU
 -- Author:  David Kornfeld and Bobby Abrahamson
 --
--- TODO
---
+-- This file serves as a testbench for the full AVR CPU as it is implemented for grading 
+-- testing. A customized version of Glen's Test ROM is executed, testing in addition
+-- to the baseline the correctness of the MUL, SBI/CBI, IN/OUT, and NOP/SLEEP/WDR instructions.
+-- In addition, asserts an interrupt shortly into execution, validating both interrupt
+-- vector correctness and the correctness of prioritization when multiple interrupts are
+-- asserted. Shortly after, a RESET is asserted, ensuring both a clean state for the program
+-- and verifying that the CPU can safely be reset in the middle of execution. These tests are
+-- intended to demonstrate the reliability of the processor.
 --
 -- Revision History:
 --      02/28/19    David Kornfeld      Initial Revision
+--      02/28/19    Bobby Abrahamson    Update documentation, implement much of TB.
 ----------------------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -110,16 +117,29 @@ begin -- #######################################################################
         
             wait for CLK_PERIOD; -- run for a set number of clock cycles
 
+            -- 10 clocks in, assert an interrupt for 1 NS.
             if (i = 10) then
                 INT0 <= '0';
                 wait for 1 ns;
                 INT0 <= '1';
             end if;
 
+            -- 2 clocks later, assert a different, lower priority
+            -- interrupt for 1 NS. The first, higher priority
+            -- interrupt should have its vector taken.
             if (i = 12) then
                 INT1 <= '0';
                 wait for 1 ns;
                 INT1 <= '1';
+            end if;
+
+            -- 95 clocks in, assert reset for 5 clock periods (-2ns).
+            -- This should realign us with the expected clock period,
+            -- And also test for our ability to reset mid-execution.
+            if (i = 95) then
+                Reset <= '0';
+                wait for (5 * CLK_PERIOD) - 1 ns;
+                Reset <= '1';
             end if;
             
         end loop;

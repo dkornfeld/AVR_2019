@@ -3,7 +3,7 @@
 --  Atmel AVR Program Memory
 --
 --  This component describes a program for the AVR CPU.  It creates the 
---  program in a small (334 x 16) ROM.
+--  program in a small (414 x 16) ROM.
 --
 --  Revision History:
 --     11 May 00  Glen George       Initial revision (from 5/9/00 version of 

@@ -109,6 +109,18 @@ begin -- #######################################################################
         for i in 1 to 5000 loop
         
             wait for CLK_PERIOD; -- run for a set number of clock cycles
+
+            if (i = 10) then
+                INT1 <= '0';
+                wait for 1 ns;
+                INT1 <= '1';
+            end if;
+
+            if (i = 12) then
+                INT0 <= '0';
+                wait for 1 ns;
+                INT0 <= '1';
+            end if;
             
         end loop;
             

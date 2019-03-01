@@ -177,12 +177,15 @@ architecture data_flow of ControlUnit is
     -- Storage for whether the next instruction is two words
     signal NextInsnTwoWords : std_logic;
 
+    -- Storage for whether we need to take an IRQ
+    signal TakingIRQ : std_logic;
+
     -- DataMAU signals (reg vs mem)
     signal reg_access_enable : std_logic; -- 1 when load/store accesses registers instead of memory
     signal reg_index : std_logic_vector(6 downto 0); -- Index of register access via load/store
 begin
     -- Instruction cycle counter logic
-    process(clock, ProgDB)
+    process(clock, ProgDB, IRQ)
     begin
         if rising_edge(clock) then
             if (reset = '1') then
@@ -192,6 +195,15 @@ begin
 
                     -- Update IR on start of new instruction
                     IR <= ProgDB;
+
+                    -- Update whether we are taking an IRQ
+                    if (IRQ = '1') and (SREG(FLAG_I) = '1') then
+                        -- Only take an IRQ when interrupt flag is set
+                        TakingIRQ <= '1';
+                        IR <= OpNOP;
+                    else
+                        TakingIRQ <= '0';
+                    end if;
                 else
                     -- Shift the bit left
                     instr_cycle <= instr_cycle(MAX_INSTR_CLKS-2 downto 0) & '0';
@@ -199,6 +211,9 @@ begin
             else
                 -- Synchronous Reset
                 instr_cycle <= std_logic_vector(to_unsigned(1, MAX_INSTR_CLKS));
+
+                -- We're not taking an IRQ.
+                TakingIRQ <= '0';
             end if;
         end if;
     end process;
@@ -225,7 +240,10 @@ begin
                 '0';
 
     -- Useful signals for memory-mapped access of registers. 
-    reg_access_enable <= '1' when (to_integer(unsigned(DataAB)) < NUM_REGS) else '0';
+    reg_access_enable <= 'X' when is_x(DataAB) else
+                         '1' when (to_integer(unsigned(DataAB)) < NUM_REGS) else 
+                         '0';
+
     reg_index <= DataAB(6 downto 0);
 
     -- And offsets get pulled out this way
@@ -262,6 +280,8 @@ begin
         DoubleZero <= '0';           -- We are normally not in a double zero insn
         MulSelect <= '0';            -- We are normally not multiplying numbers
 
+        -- By default, we are not ending taking an interrupt.
+        IRQClear <= '0';
 
         -- Default DataMAU signals
         N_OffsetMask <= '0';    -- Mask the offset
@@ -1270,7 +1290,7 @@ begin
                     RegASel         <= SREG_IDX_SEL;    -- Directly write to SREG
                     PreRegWrSel        <= SREG_IDX_SEL;
                     TSCBitSelect    <= "111";           -- Interrupt flag select
-                    FlagMask        <= FLAGS_ALL;       -- ALU can set any flag
+                    FlagMask        <= FLAGS_NONE;      -- ALU shouldn't modify other flags
                     RegWr           <= '1';             -- Write to a register
                 end if;
             end if;
@@ -1427,6 +1447,70 @@ begin
             -- Register select.
             PreRegBSel <= "0" & IR (8 downto 3);
             PreRegWrSel<= "0" & IR (8 downto 3);
+        end if;
+
+        -- NOTE: This MUST be the last block in the process
+        if (TakingIRQ = '1') then
+            -- By default (since IRQ has NOP in IR)
+            -- We are not writing a register/are passing through A
+            -- So we can choose to only overwrite a few signals. 
+
+            -- Configure ALU to clear interrupt flag.
+            SettingClearing <= '1';                   -- Change a bit
+            TSCBitSelect    <= "111";                 -- Interrupt flag select
+            BitSetClear     <= '0';                   -- Clear interrupt flag
+
+            -- Take three cycles to complete
+            reset_instr_counter <= instr_cycle(2);
+
+            -- Update PC on clock 2.
+            PCUpdateEn <= instr_cycle(1);
+
+            -- Select AddrReg = SP
+            AddrRegSel <= ADDR_REG_SEL_SP;
+
+            -- Write PC high, then PC low
+            HiLoSel    <= instr_cycle(0);
+            DBSel      <= instr_cycle(0) or instr_cycle(1);
+
+            -- If we are loading from registers
+            -- we should update the selects to route correctly.
+            if reg_access_enable = '1' then
+                -- On a store, write to the correct register.
+                PreRegWrSel <= reg_index;
+            end if;
+
+            -- Clock dependent selections
+            if (instr_cycle(0) or instr_cycle(1)) = '1' then
+                if reg_access_enable = '0' then
+                    -- Output read/write if touching memory
+                    DataWr <= clock;       -- Output write on lock clock + store
+                    DBEnableOutput <= '1'; -- Don't give up control of the DB
+                end if;
+
+                -- If we're storing to register space, we must write to a register.
+                RegWr <= reg_access_enable;
+
+                -- We're pushing, so update the address register
+                N_Inc <= '1';     -- Do a decrement
+                AddrRegWr <= '1';
+            end if;
+            if instr_cycle(1) = '1' then
+                -- Update PC with the reset vector
+                PCControl  <= PC_UPDATE_IRQ;
+                N_PCLoad   <= '0';
+            end if;
+            if instr_cycle(2) = '1' then
+                -- Clear the interrupt flag.
+                RegASel         <= SREG_IDX_SEL;    -- Directly write to SREG
+                PreRegWrSel     <= SREG_IDX_SEL;
+                RegWr           <= '1';
+
+                -- Hold PC locked in ProgAB
+                PCControl <= PC_UPDATE_ZERO;
+
+                IRQClear <= '1';
+            end if;
         end if;
     end process;
 

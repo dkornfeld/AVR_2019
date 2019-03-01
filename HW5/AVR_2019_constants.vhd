@@ -107,6 +107,7 @@ package AVR_2019_constants is
     constant SREG_IDX_SEL :    std_logic_vector(6 downto 0) := std_logic_vector(to_unsigned(SREG_IDX, 7));
 
     -- Constants for Flags array readability
+    constant FLAG_I    :    integer := 7;
     constant FLAG_T    :    integer := 6;
     constant FLAG_H    :    integer := 5;
     constant FLAG_S    :    integer := 4;

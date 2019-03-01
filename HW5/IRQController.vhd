@@ -73,23 +73,31 @@ architecture data_flow of IRQController is
     constant UARTRE_ADDRESS :   std_logic_vector(PC_WIDTH-1 downto 0) := X"000A";
     constant UARTTX_ADDRESS :   std_logic_vector(PC_WIDTH-1 downto 0) := X"000B";
     constant ANACMP_ADDRESS :   std_logic_vector(PC_WIDTH-1 downto 0) := X"000C";
+    constant MAX_ADDRESS    :   std_logic_vector(PC_WIDTH-1 downto 0) := X"FFFF";
 
-    signal Pre_IRQ              :   std_logic;
-    signal Pre_Vector_Address   :   std_logic_vector(PC_WIDTH-1 downto 0);
+    signal Pre_IRQ                  :   std_logic;
+    signal Pre_Vector_Address       :   std_logic_vector(PC_WIDTH-1 downto 0);
+    signal Latched_Vector_Address   :   std_logic_vector(PC_WIDTH-1 downto 0);
 begin
     -- Generate the IRQ output (if any interrupt occured) ##########################################
-    Pre_IRQ <=  (not INT0)  or  -- Active low
-                (not INT1)  or  -- Active low
-                T1CAP       or  -- Active high
-                T1CPA       or  -- Active high
-                T1CPB       or  -- Active high
-                T1OVF       or  -- Active high
-                T0OVF       or  -- Active high
-                IRQSPI      or  -- Active high
-                UARTRX      or  -- Active high
-                UARTRE      or  -- Active high
-                UARTTX      or  -- Active high
-                ANACMP;         -- Active high
+    Pre_IRQ <=  '1' when ((INT0   = '0') or     -- Active low
+                         (INT1   = '0')  or     -- Active low
+                         (T1CAP  = '1')  or     -- Active high
+                         (T1CPA  = '1')  or     -- Active high
+                         (T1CPB  = '1')  or     -- Active high
+                         (T1OVF  = '1')  or     -- Active high
+                         (T0OVF  = '1')  or     -- Active high
+                         (IRQSPI = '1')  or     -- Active high
+                         (UARTRX = '1')  or     -- Active high
+                         (UARTRE = '1')  or     -- Active high
+                         (UARTTX = '1')  or     -- Active high
+                         (ANACMP = '1')         -- Active high
+                         ) and (IRQClear = '0') -- Force 0 if cleared IRQ
+                    else
+                '0';
+
+    Vector_Address <= Latched_Vector_Address;
+
     process(Pre_IRQ, IRQClear)
     begin
         if RESET = '0' or IRQClear = '1' then
@@ -100,7 +108,7 @@ begin
     end process;
 
     -- Output the proper address ###################################################################
-    process (RESET, INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
+    process (INT0, INT1, T1CAP, T1CPA, T1CPB, T1OVF, T0OVF, IRQSPI, UARTRX, UARTRE, UARTTX, ANACMP)
     begin
         if (INT0 = '0') then                        -- Priority given in this order
             Pre_Vector_Address <= INT0_ADDRESS;
@@ -126,13 +134,20 @@ begin
             Pre_Vector_Address <= UARTTX_ADDRESS;
         elsif (ANACMP = '1') then
             Pre_Vector_Address <= ANACMP_ADDRESS;
+        else
+            Pre_Vector_Address <= MAX_ADDRESS;
         end if;
     end process;
 
-    process(Pre_IRQ)
+    process(Pre_IRQ, RESET, IRQClear)
     begin
-        if rising_edge(Pre_IRQ) then
-            Vector_Address <= Pre_Vector_Address;
+        if Pre_IRQ = '1' and (
+            to_integer(unsigned(Pre_Vector_Address)) < to_integer(unsigned(Latched_Vector_Address))
+            ) then
+            Latched_Vector_Address <= Pre_Vector_Address;
+        end if;
+        if (RESET = '0') or (IRQClear = '1') then
+            Latched_Vector_Address <= MAX_ADDRESS;
         end if;
     end process;
 end architecture;

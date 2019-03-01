@@ -5,13 +5,28 @@
 --  This is the entity declaration for the complete AVR CPU.  The design
 --  should implement this entity to make testing possible.
 --
+--  EXTRA CREDIT IMPLEMENTED:
+--   - The MUL instruction has been implemented in the CPU.
+--   - The register and IO ports are in the data memory space of the processor.
+--         Reads/writes to these addresses are redirected, and DataRd/DataWr
+--         are appropriately not signaled when reading/writing from this space.
+--   - Several AVR Misc instructions have been implemented:
+--         - SBI, IN, NOP, OUT, SBI, SLEEP, WDR are all implemented.
+--         - LPM has not been implemented
+--   - The AVR Reset and Interrupt vectors have been fully implemented.
+--         - Vector prioritization correctness has been tested, if multiple
+--           vectors are asserted the highest priority one is taken.
+--         - Vector implementation correctly pushes return address onto
+--           stack, and RETI functions correctly to return from interrupt.
+--
 --  Revision History:
---      11 May 98   Glen George     Initial revision.
---      9 May 00    Glen George     Updated comments.
---      7 May 02    Glen George     Updated comments.
---      21 Jan 08   Glen George     Updated comments.
---      02/28/19    David Kornfeld  Added our implementation
---      02/28/19    David Kornfeld  Added Interrupt Vector Controller
+--      11 May 98   Glen George      Initial revision.
+--      9 May 00    Glen George      Updated comments.
+--      7 May 02    Glen George      Updated comments.
+--      21 Jan 08   Glen George      Updated comments.
+--      02/28/19    David Kornfeld   Added our implementation
+--      02/28/19    David Kornfeld   Added Interrupt Vector Controller
+--      02/28/19    Bobby Abrahamson Added documentation on extra credit implemented
 --
 ----------------------------------------------------------------------------------------------------
 

@@ -151,6 +151,7 @@ architecture data_flow of AVR_CPU is
     signal NewAddrData      :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
 
     -- ProgMAU
+
     signal Offset           :   std_logic_vector(PC_WIDTH-1 downto 0);
     signal AddrDataIn       :   std_logic_vector(DATA_AB_SIZE-1 downto 0);
     signal Vector_Address   :   std_logic_vector(PC_WIDTH-1 downto 0);
@@ -160,6 +161,7 @@ architecture data_flow of AVR_CPU is
     signal PCControl        :   std_logic_vector(2 downto 0);
     signal HiLoSel          :   std_logic;
     signal PMAUProgDBLatch  :   std_logic;
+    signal LoadProgramMem   :   std_logic;
 
     signal PC               :   std_logic_vector(PC_WIDTH-1 downto 0);
 
@@ -187,7 +189,9 @@ begin
         end if;
     end process;
 
-    HiLoSelectedPC  <=  PC(PC_WIDTH-1 downto NUM_BITS)  when HiLoSel = '1' else
+    HiLoSelectedPC  <=  ProgDB(PC_WIDTH-1 downto NUM_BITS) when LoadProgramMem = '1' and RegZ(0) = '1' else
+                        ProgDB(NUM_BITS-1 downto 0) when LoadProgramMem = '1' else
+                        PC(PC_WIDTH-1 downto NUM_BITS) when HiLoSel = '1' else
                         delayedPCLow;
 
     PreDataDB   <=  Result      when DBSel = '0' else   -- ALU Output
@@ -259,6 +263,7 @@ begin
         PCControl           => PCControl           ,
         HiLoSel             => HiLoSel             ,
         PMAUProgDBLatch     => PMAUProgDBLatch     ,
+        LoadProgramMem      => LoadProgramMem      ,
         -- DMAU             => -- DMAU             ,
         N_Inc               => N_Inc               ,
         N_OffsetMask        => N_OffsetMask        ,
@@ -340,6 +345,7 @@ begin
         N_PCLoad        => N_PCLoad        ,
         PCControl       => PCControl       ,
         HiLoSel         => HiLoSel         ,
+        LoadProgramMem  => LoadProgramMem  ,
         PMAUProgDBLatch => PMAUProgDBLatch ,
         ProgAB          => ProgAB          ,
         PC              => PC              

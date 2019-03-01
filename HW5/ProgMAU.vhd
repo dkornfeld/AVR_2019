@@ -56,6 +56,7 @@ entity ProgMAU is
         PCControl       :   in  std_logic_vector(2 downto 0);
         HiLoSel         :   in  std_logic;
         PMAUProgDBLatch :   in  std_logic;
+        LoadProgramMem  :   in  std_logic;
         ProgAB          :   out std_logic_vector(PC_WIDTH-1 downto 0);
         PC              :   out std_logic_vector(PC_WIDTH-1 downto 0)
     );
@@ -149,6 +150,6 @@ begin
 
     -- Connect outputs to their ports ##############################################################
     PC      <=  PrePc;
-    ProgAB  <=  ComputedAddress;
+    ProgAB  <=  ComputedAddress when (LoadProgramMem = '0') else "0" & RegZ(RegZ'length - 1 downto 1);
 
 end architecture;

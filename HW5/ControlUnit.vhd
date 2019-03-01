@@ -149,6 +149,7 @@ entity ControlUnit is
         HiLoSel             :    out    std_logic;
         PCOffset            :    out    std_logic_vector(PC_WIDTH-1 downto 0);
         PMAUProgDBLatch     :    out    std_logic;
+        LoadProgramMem      :    out    std_logic;
         -- DMAU
         N_Inc               :    out    std_logic;
         N_OffsetMask        :    out    std_logic;
@@ -296,6 +297,7 @@ begin
         HiLoSel <= '0';              -- Don't care
         PCOffset <= (others => '0'); -- Offset normally zero
         DBSel <= '0';                -- Usually take DataDB from ALU
+        LoadProgramMem <= '0';       -- Normally don't load program mem.
         
         if std_match(IR, OpADC) then
             -- ALU
@@ -1429,6 +1431,46 @@ begin
 
             -- Registers
             PreRegWrSel <= "0" & IR(10 downto 9) & IR(3 downto 0); 
+        end if;
+
+        if (std_match(IR, OpLPM) or std_match(IR, OpLPMZ) or std_match(IR, OpLPMZI)) then
+            -- ALU
+            N_AddMask       <= '0';             -- Mask out A
+            FSRControl      <= ALU_FSR_A;       -- A passes through
+            Subtract        <= '0';             -- Not subtracting
+            ALUResultSel    <= '0';             -- Adder
+            CarryInControl  <= CARRY_IN_ZERO;   -- No Carry Influence
+            TLoad           <= '0';             -- Not loading from T
+            SettingClearing <= '0';             -- Not setting/clearing
+            BitSetClear     <= '0';             -- Don't care
+            FlagMask        <= FLAGS_NONE;      -- Don't change flags
+
+            -- Registers
+            if IR(10) = '1' then
+                -- If normal LPM, load to R0.
+                -- Otherwise, default decoding is correct.
+                PreRegWrSel <= (others => '0');
+            end if;
+
+            -- Take three cycles
+            reset_instr_counter <= instr_cycle(2);
+            PCUpdateEn <= instr_cycle(2);
+
+            -- Write a register on cycle 0.
+            LoadProgramMem <= (instr_cycle(0) or instr_cycle(1));
+            RegWr <= instr_cycle(1);
+
+            -- Write program memory contents.
+            DBSel <= '1';
+
+            -- Select register Z, pre-increment.
+            AddrRegSel <= ADDR_REG_SEL_Z;
+            PrePostSel <= '1'; -- Select Pre
+
+            -- On cycle 3, if LPMZI increment Z.
+            if IR(0) = '1' and instr_cycle(2) = '1' then
+                AddrRegWr <= '1';
+            end if;
         end if;
 
         if (std_match(IR, OpSBI) or std_match(IR, OpCBI)) then
